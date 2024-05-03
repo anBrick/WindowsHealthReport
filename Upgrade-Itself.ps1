@@ -1,6 +1,8 @@
 <#	
 	.DESCRIPTION
 		safe update module
+  		new version
+    		checking source at GIT, local folder, domain logon folder
 #>
 
 #update itself from defined location
