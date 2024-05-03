@@ -123,7 +123,7 @@ param(
 )
 #############################################################################
 #REGION:: Customizable variables. Adjust them for your actual environment
-$ScriptDistributionPoints = @('c:\report\',$($ENV:LOGONSERVER + "\NETLOGON\")) ## path for automatic upgrade from
+$ScriptDistributionPoints = @('c:\report\',$($ENV:LOGONSERVER + "\NETLOGON\"),"https://raw.githubusercontent.com/anBrick/WindowsHealthReport/main/") ## path for automatic upgrade from
 $WorkDir = "$ENV:ALLUSERSPROFILE\Microsoft\Diagnosis\"
 $ReportFilePath = [Environment]::GetFolderPath('MyDocuments')
 if (($ReportFilePath -match "^[a-zA-Z]:\\$") -or ([string]::IsNullOrEmpty($ReportFilePath.trim()))) {$ReportFilePath = ($ENV:WINDIR + '\LOGS')}
@@ -331,13 +331,23 @@ if ($Ignore)
 }
 #check Distribution Point for a newer version and upgrade itself...
 #Write-Host ('ScripDistributionPoint: {0} | Script Path: {1} | Script Name: {2}' -f $ScriptDistributionPoint, $MyInvocation.MyCommand.Path, $MyInvocation.MyCommand.Name) -BackgroundColor DarkCyan -ForegroundColor Yellow
-foreach ($
- in $ScriptDistributionPoints){
-if ((Test-Path -PathType Leaf -LiteralPath ($ScriptDistributionPoint + $MyInvocation.myCommand.name)) -and ((Get-Item ($ScriptDistributionPoint + $MyInvocation.myCommand.name)).LastWriteTime.ticks -gt ((Get-Item $MyInvocation.MyCommand.Path).LastWriteTime.ticks)))
-{
-	Write-Host ('The Distribution point has the newest version of the script. Starting Upgrade itself') -BackgroundColor DarkYellow -ForegroundColor Black
-	try { Copy-Item ($ScriptDistributionPoint + $MyInvocation.myCommand.name) -Destination $($MyInvocation.MyCommand.Path) -Force; }
-	catch { Write-Error "ERROR: Impossible to upgrade the script from the $ScriptDistributionPoint, leaving it as is." }
+foreach ($ScriptDistributionPoint in $ScriptDistributionPoints){
+if ($ScriptDistributionPoint -match "^(https?:\/\/)") {
+	$UpdatesFile = $ENV:TEMP + '\' + $MyInvocation.myCommand.name
+	try {
+		Invoke-WebRequest -Uri $($ScriptDistributionPoint + $MyInvocation.myCommand.name) -UseDefaultCredentials -OutFile $UpdatesFile
+		Unblock-File $UpdatesFile
+		Copy-Item $UpdatesFile -Destination $($MyInvocation.MyCommand.Path) -Force;
+	}
+	catch {Write-Error "ERROR: Unable to install updates from $ScriptDistributionPoint, running as is."}
+}
+else {
+	if ((Test-Path -PathType Leaf -LiteralPath ($ScriptDistributionPoint + $MyInvocation.myCommand.name)) -and ((Get-Item ($ScriptDistributionPoint + $MyInvocation.myCommand.name)).LastWriteTime.ticks -gt ((Get-Item $MyInvocation.MyCommand.Path).LastWriteTime.ticks)))
+	{
+		Write-Host ('The Distribution point has the newest version of the script. Starting Upgrade itself') -BackgroundColor DarkYellow -ForegroundColor Black
+		try { Copy-Item ($ScriptDistributionPoint + $MyInvocation.myCommand.name) -Destination $($MyInvocation.MyCommand.Path) -Force; }
+		catch { Write-Error "ERROR: Impossible to upgrade the script from the $ScriptDistributionPoint, leaving it as is." }
+	}
 }
 }
 #Check Language mode locally and remotely
