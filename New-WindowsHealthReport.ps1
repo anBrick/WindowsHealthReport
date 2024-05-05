@@ -642,7 +642,7 @@ $rSVC = { # Get Services anomalies : run remotely
 				#DEBUG
 				#$w +="<p>($svc | Select-Object -Property Name,DisplayName,StartMode,State,Status,StartName,PathName,AssemblyPath,SignatureStatusMessage,SignatureStatus)"
 			}
-			if ((($svc.StartMode -eq "Auto") -and ($svc.State -ne "Running"))) {$svc.DIAG.Add('State', 'e'); $w = "<div>`r`nSVC: <b>Error</b>: `t<i>Service $($svc.Name) is configured for Automatic startup but not running on the host $ServerName.</i></div>"; [void]$r.Add($($svc | Select-Object -Property DIAG,Name,DisplayName,StartMode,State,Status,StartName,PathName,AssemblyPath,SignatureStatusMessage,SignatureSubject))}
+			if ((($svc.StartMode -eq "Auto") -and ($svc.State -ne "Running"))) {$svc.DIAG.Add('State', 'e'); $w = "<div>`r`nSVC: <b>Error:</b> `t<i>Service $($svc.Name) is configured for Automatic startup but not running on the host $ServerName.</i></div>"; [void]$r.Add($($svc | Select-Object -Property DIAG,Name,DisplayName,StartMode,State,Status,StartName,PathName,AssemblyPath,SignatureStatusMessage,SignatureSubject))}
 			elseif ($svcSign.Status -ne 'Valid') { $svc.DIAG.Add('SignatureStatusMessage', 'w'); [void]$r.Add($($svc | Select-Object -Property DIAG, Name, DisplayName, StartMode, State, Status, StartName, PathName, AssemblyPath, SignatureStatusMessage, SignatureSubject)) }
 			elseif (($svc.StartName -match $DomainName) -or ($svc.StartName -match $ServerName)) { $svc.DIAG.Add('StartName', 'w'); [void]$r.Add($($svc | Select-Object -Property DIAG, Name, DisplayName, StartMode, State, Status, StartName, PathName, AssemblyPath, SignatureStatusMessage, SignatureSubject)) }
 		}  
