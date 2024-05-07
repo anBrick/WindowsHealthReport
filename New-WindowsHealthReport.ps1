@@ -648,7 +648,7 @@ $rSVC = { # Get Services anomalies : run remotely
 			$svc.AssemblyPath = $svc.AssemblyPath -replace '"'
 			$svc.psobject.properties.Add([psnoteproperty]::new('DIAG', $DIAG))
 			if ((-Not ($svc.AssemblyPath | Test-Path -PathType Leaf)) -and (!$svc.AssemblyPath -match '.exe$')) {$svc.AssemblyPath = ($svc.AssemblyPath + '.exe')}
-			if (-Not ($svc.AssemblyPath | Test-Path)) {$w ="<div>SVC: Warning: `t<i>Service with missed executable was found on the host $ServerName.</i></div>`r`n"; $svc.DIAG.Add('AssemblyPath', 'w')
+			if (-Not ($svc.AssemblyPath | Test-Path)) {$w +="<div>SVC: Warning: `t<i>Service with missed executable was found on the host $ServerName.</i></div>`r`n"; $svc.DIAG.Add('AssemblyPath', 'w')
 				[void]$r.Add($($svc | Select-Object -Property DIAG,Name,DisplayName,StartMode,State,Status,StartName,PathName,AssemblyPath,SignatureStatusMessage,SignatureSubject))
 			} #Service Exe not found
 			else {
@@ -658,7 +658,7 @@ $rSVC = { # Get Services anomalies : run remotely
 				#DEBUG
 				#$w +="<p>($svc | Select-Object -Property Name,DisplayName,StartMode,State,Status,StartName,PathName,AssemblyPath,SignatureStatusMessage,SignatureStatus)"
 			}
-			if ((($svc.StartMode -eq "Auto") -and ($svc.State -ne "Running"))) {$svc.DIAG.Add('State', 'e'); $w = "<div>SVC: <b>Error:</b> `t<i>Service $($svc.Name) is configured for Automatic startup but not running on the host $ServerName.</i></div>`r`n"; [void]$r.Add($($svc | Select-Object -Property DIAG,Name,DisplayName,StartMode,State,Status,StartName,PathName,AssemblyPath,SignatureStatusMessage,SignatureSubject))}
+			if ((($svc.StartMode -eq "Auto") -and ($svc.State -ne "Running"))) {$svc.DIAG.Add('State', 'e'); $w += "<div>SVC: <b>Error:</b> `t<i>Service $($svc.Name) is configured for Automatic startup but not running on the host $ServerName.</i></div>`r`n"; [void]$r.Add($($svc | Select-Object -Property DIAG,Name,DisplayName,StartMode,State,Status,StartName,PathName,AssemblyPath,SignatureStatusMessage,SignatureSubject))}
 			elseif ($svcSign.Status -ne 'Valid') { $svc.DIAG.Add('SignatureStatusMessage', 'w'); [void]$r.Add($($svc | Select-Object -Property DIAG, Name, DisplayName, StartMode, State, Status, StartName, PathName, AssemblyPath, SignatureStatusMessage, SignatureSubject)) }
 			elseif (($svc.StartName -match $DomainName) -or ($svc.StartName -match $ServerName)) { $svc.DIAG.Add('StartName', 'w'); [void]$r.Add($($svc | Select-Object -Property DIAG, Name, DisplayName, StartMode, State, Status, StartName, PathName, AssemblyPath, SignatureStatusMessage, SignatureSubject)) }
 		}  
