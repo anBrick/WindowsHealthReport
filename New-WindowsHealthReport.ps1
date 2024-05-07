@@ -319,6 +319,21 @@ function ConvertTo-HTMLStyle
 	}
 	End {$HTMLOutput =  $PreContent + "`r`n<TABLE><TR>" + $TableHeader + ($HTMLOutput.Replace('<TD class=>', '<TD class=u>')).Replace('::', '<br>') + "`n</TABLE>`r`n"; $HTMLOutput}
 }
+function Write-Status {
+Param( 
+	[Parameter(Mandatory=$true)]
+	[string]$Message,
+	[Parameter(Mandatory=$false)]
+	[ValidateSet("Information", "Warning", "Error")]
+	$Status = 'Information'
+)
+	switch ($Status) {
+		'Information' {Write-host $Message}
+		'Warning' {Write-host $Message -foregroundColor yellow}
+		'Error' {Write-Error $Message}
+	}
+	Write-EventLog -LogName Application -Source "Userenv" -EntryType $Status -EventID 34343 -Message $($MyInvocation.myCommand.name + " :: " + $Message) -ea 0 
+}
 #function
 #REGION:: Prepare ENVIRONMENT
 #Create Ignore list from include array
@@ -338,15 +353,16 @@ if ($ScriptDistributionPoint -match "^(https?:\/\/)") {
 		Invoke-WebRequest -Uri $($ScriptDistributionPoint + $MyInvocation.myCommand.name) -UseDefaultCredentials -OutFile $UpdatesFile
 		Unblock-File $UpdatesFile
 		Copy-Item $UpdatesFile -Destination $($MyInvocation.MyCommand.Path) -Force;
+		Remove-Item $UpdatesFile -ea 0
 	}
-	catch {Write-Error "ERROR: Unable to install updates from $ScriptDistributionPoint, running as is."}
+	catch {Write-Status -Status Error -Message "ERROR: Unable to install updates from $ScriptDistributionPoint, running as is."}
 }
 else {
 	if ((Test-Path -PathType Leaf -LiteralPath ($ScriptDistributionPoint + $MyInvocation.myCommand.name)) -and ((Get-Item ($ScriptDistributionPoint + $MyInvocation.myCommand.name)).LastWriteTime.ticks -gt ((Get-Item $MyInvocation.MyCommand.Path).LastWriteTime.ticks)))
 	{
-		Write-Host ('The Distribution point has the newest version of the script. Starting Upgrade itself') -BackgroundColor DarkYellow -ForegroundColor Black
+		Write-Status -Status Information -Message ('The Distribution point has the newest version of the script. Starting Upgrade itself')
 		try { Copy-Item ($ScriptDistributionPoint + $MyInvocation.myCommand.name) -Destination $($MyInvocation.MyCommand.Path) -Force; }
-		catch { Write-Error "ERROR: Impossible to upgrade the script from the $ScriptDistributionPoint, leaving it as is." }
+		catch { Write-Status -Status Error -Message  "ERROR: Impossible to upgrade the script from the $ScriptDistributionPoint, leaving it as is." }
 	}
 }
 }
@@ -358,13 +374,13 @@ Remove-PSSession -Id $remotesesstion.Id
 #Verify Escalated execution, if nor try to rise
 $RTUser = [Security.Principal.WindowsIdentity]::GetCurrent()
 If ((New-Object Security.Principal.WindowsPrincipal $RTUser).IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator) -eq $FALSE) { Start-Process powershell.exe "-File", ('"{0}"' -f $MyInvocation.MyCommand.Path) -Verb RunAs; exit}
-if ((New-Object Security.Principal.WindowsPrincipal $RTUser).IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator) -eq $FALSE) {Write-error "U do not hold enough rights, dude. Farewell."; throw}
+if ((New-Object Security.Principal.WindowsPrincipal $RTUser).IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator) -eq $FALSE) {Write-Status -Status Error -Message  "U do not hold enough rights, dude. Farewell."; throw}
 #############################################################################
 #If Powershell is running the 32-bit version on a 64-bit machine, we 
 #need to force powershell to run in 64-bit mode .
 #############################################################################
 if (($pshome -like "*syswow64*") -and ((Get-WmiObject Win32_OperatingSystem).OSArchitecture -like "64*")) {
-    write-warning "Restarting script under 64 bit powershell"
+    Write-Status -Status Warning -Message "Restarting script under 64 bit powershell"
     # relaunch this script under 64 bit shell
     & (join-path ($pshome -replace "syswow64", "sysnative")\powershell.exe) -file $myinvocation.mycommand.Definition @args
     # This will exit the original powershell process. This will only be done in case of an x86 process on a x64 OS.
@@ -373,7 +389,7 @@ if (($pshome -like "*syswow64*") -and ((Get-WmiObject Win32_OperatingSystem).OSA
 # Show a brief help message if no parameters passed
 if ($PSBoundParameters.Count -lt 1) { Write-host "`nCreate Server Health report and (optionaly) send it by email.`n  Usage:  .\$($myinvocation.MyCommand.Name) -ServerName localhost -EmailTo it@domain.com -Ignore ROL`n" -ForegroundColor Yellow}
 $IgnoreParams = 'Install'
-Write-Host "Prepare environment on $($ServerName) at $(Get-Date)" -foregroundcolor yellow
+Write-Status -Status Information -Message "Prepare environment on $($ServerName) at $(Get-Date)"
 #Enabling PSRemote
 Enable-PSRemoting -SkipNetworkProfileCheck -Force
 Set-Item WSMan:\localhost\Client\TrustedHosts -Value $ServerName -Concatenate -Force
@@ -382,11 +398,11 @@ Restart-Service WinRM -Force
 #############################################################################
 #REGION:: Register System Scheduled Task (switch -INSTALL)
 if ($install) {
-	Write-Host "Install Switch invoked. The script will be registered on $($ServerName) at as SYSTEM task for 06:00 AM every day" -foregroundcolor yellow
+	Write-Status -Status Information -Message "Install Switch invoked. The script will be registered on $($ServerName) at as SYSTEM task for 06:00 AM every day"
 	#copy script to %SystemRoot%
 	$scriptpath = $MyInvocation.MyCommand.Path
 	try {Copy-Item $scriptpath -Destination $(($env:PSModulePath -split ";").Where({$_ -like "$env:ProgramFiles*"})) -Force; $scriptpath = $(($env:PSModulePath -split ";").Where({$_ -like "$env:ProgramFiles*"}).trim() + '\' + $MyInvocation.myCommand.name) }
-	catch {Write-Error "unable to copy script to the %SYSTEMROOT%, running as is."}
+	catch {Write-Status -Status Error -Message  "unable to copy script to the %SYSTEMROOT%, running as is."}
 	#Create parameters string to path to the script
 	if ($PSBoundParameters.ContainsKey('Install')) {$PSBoundParameters.Remove('Install')}
 	foreach($h in $MyInvocation.MyCommand.Parameters.GetEnumerator()){
@@ -849,20 +865,20 @@ $rEVTv = { #Get Event Log Errors verbosely - run locally
 #############################################################################
 #############################################################################
 #REGION:: EXECUING TESTS
-Write-Host "Starting jobs on $($ServerName) at $(Get-Date)" -foregroundcolor yellow
+Write-Status -Status Information -Message "Starting jobs on $($ServerName) at $(Get-Date)"
 if ($RunTest -contains 'EVT') {
 		Start-Job $rEVT -ArgumentList $ServerName -Name "EVT" | Select-Object PSBeginTime,location,id,name,State,Error | Format-Table -AutoSize
 		Start-Job $rEVTv -ArgumentList $ServerName -Name "EVTV" | Select-Object PSBeginTime,location,id,name,State,Error | Format-Table -AutoSize
 } #OK
 if ($RunTest -contains 'WUS') {
+	Write-Status -Status Information -Message "Starting job Windows Update State for $($ServerName) at $(Get-Date)"
 	if (($ServerName -eq "localhost") -or ($ServerName -eq "127.0.0.1")) {
-	Write-Host "Starting local job WUS for $($ServerName) at $(Get-Date)" -foregroundcolor green
 	Start-Job -scriptblock $rWUA -Name "WUA" | Select-Object PSBeginTime,location,id,name,State,Error | Format-Table -AutoSize}
 	else {
-	Write-Host "Starting remote job WUS for $($ServerName) at $(Get-Date)" -foregroundcolor yellow
 	Invoke-Command -computername $ServerName -scriptblock $rWUA  -JobName "WUA" -AsJob | Select-Object PSBeginTime,location,id,name,State,Error | Format-Table -AutoSize}
 }
 if ($RunTest -contains 'WFW') {
+	Write-Status -Status Information -Message "Starting job Windows Firewall State for $($ServerName) at $(Get-Date)"
 	if (($ServerName -eq "localhost") -or ($ServerName -eq "127.0.0.1")) {
 	Start-Job -scriptblock $rFWP -Name "FWP" | Select-Object PSBeginTime,location,id,name,State,Error | Format-Table -AutoSize
 	Start-Job -scriptblock $rFWC -Name "FWC" | Select-Object PSBeginTime,location,id,name,State,Error | Format-Table -AutoSize}
@@ -871,10 +887,12 @@ if ($RunTest -contains 'WFW') {
 	Invoke-Command -computername $ServerName -scriptblock $rFWC -JobName "FWC" -AsJob | Select-Object PSBeginTime,location,id,name,State,Error | Format-Table -AutoSize}
 }
 if ($RunTest -contains 'LUS') {
+	Write-Status -Status Information -Message "Starting job Active User's Sessions for $($ServerName) at $(Get-Date)"
 	if (($ServerName -eq "localhost") -or ($ServerName -eq "127.0.0.1")) {	Start-Job -scriptblock $rLUS -ArgumentList $ServerName -Name "LUS" | Select-Object PSBeginTime,location,id,name,State,Error | Format-Table -AutoSize }
 	else {Invoke-Command -computername $ServerName -scriptblock $rLUS -ArgumentList $ServerName -JobName "LUS" -AsJob | Select-Object PSBeginTime,location,id,name,State,Error | Format-Table -AutoSize } 
 }
 if ($RunTest -contains 'WHW') {
+	Write-Status -Status Information -Message "Starting job Detect Hardware for $($ServerName) at $(Get-Date)"
 	if (($ServerName -eq "localhost") -or ($ServerName -eq "127.0.0.1")) {	
 		Start-Job -scriptblock $rWHW -ArgumentList $ServerName -Name "WHW" | Select-Object PSBeginTime,location,id,name,State,Error | Format-Table -AutoSize 
 		Start-Job -scriptblock $rCPU -ArgumentList $ServerName -Name "CPU" | Select-Object PSBeginTime,location,id,name,State,Error | Format-Table -AutoSize
@@ -890,6 +908,7 @@ if ($RunTest -contains 'WHW') {
 
 }
 if ($RunTest -contains 'WAV') {
+	Write-Status -Status Information -Message "Starting job Windows Antivirus State for $($ServerName) at $(Get-Date)"
 	$AVinfo = Detect-WindowsAVInstalled -ServerName $ServerName
 	if ($AVinfo.report.DisplayName -match 'Windows Defender') {
 		if (($ServerName -eq "localhost") -or ($ServerName -eq "127.0.0.1"))
@@ -906,36 +925,43 @@ if ($RunTest -contains 'WAV') {
 	else { [void]$Problems.Add("<div>`r`nWAV: Warning: `t<i>The 3d party Antivirus software installed. Only basic info was got.</i></div>") } # 3d party antivirus detected. Need custom detection routine 
 }
 if ($RunTest -contains 'SVC') {
+	Write-Status -Status Information -Message "Starting job Windows Services State for $($ServerName) at $(Get-Date)"
 	if (($ServerName -eq "localhost") -or ($ServerName -eq "127.0.0.1")) {Start-Job -scriptblock $rSVC -ArgumentList $ServerName -Name "SVC" | Select-Object PSBeginTime,location,id,name,State,Error | Format-Table -AutoSize}
 	else {Invoke-Command -computername $ServerName -scriptblock $rSVC -ArgumentList $ServerName -JobName "SVC" -AsJob | Select-Object PSBeginTime,location,id,name,State,Error | Format-Table -AutoSize}
 }
 if ($RunTest -contains 'USR') {
+	Write-Status -Status Information -Message "Starting job Local Users for $($ServerName) at $(Get-Date)"
 	Start-Job -scriptblock $rUSR -ArgumentList $ServerName -Name "USR" | Select-Object PSBeginTime,location,id,name,State,Error | Format-Table -AutoSize #Run User analysis job
 }
 if ($RunTest -contains 'CRT') {
+	Write-Status -Status Information -Message "Starting job Certificates for $($ServerName) at $(Get-Date)"
 	if (($ServerName -eq "localhost") -or ($ServerName -eq "127.0.0.1")) {Start-Job -scriptblock $CRT -ArgumentList $ServerName -Name "CRT" | Select-Object PSBeginTime,location,id,name,State,Error | Format-Table -AutoSize}
 	else {Invoke-Command -computername $ServerName -scriptblock $CRT -ArgumentList $ServerName -JobName "CRT" -AsJob | Select-Object PSBeginTime,location,id,name,State,Error | Format-Table -AutoSize}
 }
 if ($RunTest -contains 'SHA') {
+	Write-Status -Status Information -Message "Starting job Shares for $($ServerName) at $(Get-Date)"
 	if (($ServerName -eq "localhost") -or ($ServerName -eq "127.0.0.1")) {Start-Job -scriptblock $SHA -ArgumentList $ServerName -Name "SHA" | Select-Object PSBeginTime,location,id,name,State,Error | Format-Table -AutoSize}
 	else {Invoke-Command -computername $ServerName -scriptblock $SHA -ArgumentList $ServerName -JobName "SHA" -AsJob | Select-Object PSBeginTime,location,id,name,State,Error | Format-Table -AutoSize}
 }
 if ($RunTest -contains 'NTP') {
+	Write-Status -Status Information -Message "Starting job Internet Time for $($ServerName) at $(Get-Date)"
 	if (($ServerName -eq "localhost") -or ($ServerName -eq "127.0.0.1")) {Start-Job -scriptblock $rNTP -ArgumentList $ServerName -Name "NTP" | Select-Object PSBeginTime,location,id,name,State,Error | Format-Table -AutoSize}
 	else {Invoke-Command -computername $ServerName -scriptblock $rNTP -ArgumentList $ServerName -JobName "NTP" -AsJob | Select-Object PSBeginTime,location,id,name,State,Error | Format-Table -AutoSize}
 }
 if ($RunTest -contains 'AZS') {
+	Write-Status -Status Information -Message "Starting job Azure Join State for $($ServerName) at $(Get-Date)"
 	if (($ServerName -eq "localhost") -or ($ServerName -eq "127.0.0.1")) {Start-Job -scriptblock $AZS -ArgumentList $ServerName -Name "AZS" | Select-Object PSBeginTime,location,id,name,State,Error | Format-Table -AutoSize}
 	else {Invoke-Command -computername $ServerName -scriptblock $AZS -ArgumentList $ServerName -JobName "AZS" -AsJob | Select-Object PSBeginTime,location,id,name,State,Error | Format-Table -AutoSize}
 }
 if ($RunTest -contains 'PRC') {
+	Write-Status -Status Information -Message "Starting job Windows Processes for $($ServerName) at $(Get-Date)"
 	if (($ServerName -eq "localhost") -or ($ServerName -eq "127.0.0.1")) {Start-Job -scriptblock $rPUNS -ArgumentList $ServerName -Name "PUNS" | Select-Object PSBeginTime,location,id,name,State,Error | Format-Table -AutoSize}
 	else {Invoke-Command -computername $ServerName -scriptblock $rPUNS -ArgumentList $ServerName -JobName "PUNS" -AsJob | Select-Object PSBeginTime,location,id,name,State,Error | Format-Table -AutoSize}
 }
 
 #############################################################################
 #REGION:: COLLECTING RESULTS
-Write-Host "Waiting for completed jobs on $($ServerName) at $(Get-Date)" -foregroundcolor yellow
+Write-Status -Status Information -Message "Waiting for completed jobs on $($ServerName) at $(Get-Date)"
 $Watch = [System.Diagnostics.Stopwatch]::StartNew(); $runningmins = $Watch.Elapsed.Minutes
 while ($null -ne (Get-Job)) {
 		#$host.UI.RawUI.CursorPosition = $origpos; Write-Host $scroll[$idx] -NoNewline; $idx++; if ($idx -ge $scroll.Length) {$idx=0}; Start-Sleep -Milliseconds 100
@@ -966,20 +992,20 @@ while ($null -ne (Get-Job)) {
 			if ($jdone.Name -like "AZS") {$AZState = $jout}
 			if ($jdone.Name -like "VOL") {$VOLstate = $jout}
 		}
-		Write-Host "The job $($jdone.Name) completed." -foregroundcolor yellow
+		Write-Status -Status Information -Message "The job $($jdone.Name) completed."
 		Remove-Job -Id $jdone.Id
 	}
-	if (($Watch.Elapsed.Minutes - $runningmins) -gt 2) {$runningmins = $Watch.Elapsed.Minutes; Write-host "Job(s): $(((Get-Job | Where-Object { $_.State -ne 'Completed' }).Name) -join '; ') are running $($Watch.Elapsed.Minutes) minutes so far.. Waiting for results..." -foregroundcolor yellow}
+	if (($Watch.Elapsed.Minutes - $runningmins) -gt 2) {$runningmins = $Watch.Elapsed.Minutes; Write-Status -Status Warning -Message "Job(s): $(((Get-Job | Where-Object { $_.State -ne 'Completed' }).Name) -join '; ') are running $($Watch.Elapsed.Minutes) minutes so far.. Waiting for results..."}
 	if ($Watch.Elapsed.Minutes -gt $JobRunningLimit) {[void]$Problems.Add("<div>`r`nRUNTIME: Warning: `t<i>The JOBs $(((Get-Job | Where-Object { $_.State -ne 'Completed' }).Name) -join '; ') on the host $ServerName are running too long. These jobs where skipped.</i></div>"); $Watch.Stop(); break}
 	if (Get-Job | Where-Object { $_.State -eq "Failed" }) {
-		(Get-Job | Where-Object { $_.State -eq "Failed" }).foreach({Write-Host ("Job $_.Name was failed with error: " + ($_.ChildJobs[0].JobStateInfo.Reason.Message)) -ForegroundColor Red; [void]$Problems.Add("<div>`r`nRUNTIME: Warning: `t<i>The JOB $($_.Name) on the host $ServerName was failed with error $($_.ChildJobs[0].JobStateInfo.Reason.Message) . This job was skipped.</i></div>")})
-		Write-host "Job(s): $(((Get-Job | Where-Object { $_.State -ne 'Failed' }).Name) -join '; ') are failed. Remove these jobs. " -foregroundcolor yellow
+		(Get-Job | Where-Object { $_.State -eq "Failed" }).foreach({Write-Status -Status Error -Message ("Job $_.Name was failed with error: " + ($_.ChildJobs[0].JobStateInfo.Reason.Message)); [void]$Problems.Add("<div>`r`nRUNTIME: Warning: `t<i>The JOB $($_.Name) on the host $ServerName was failed with error $($_.ChildJobs[0].JobStateInfo.Reason.Message) . This job was skipped.</i></div>")})
+		Write-Status -Status Error -Message "Job(s): $(((Get-Job | Where-Object { $_.State -ne 'Failed' }).Name) -join '; ') are failed. Remove these jobs. "
 		Get-Job | Where-Object { $_.State -eq "Failed" } | Remove-Job -Force
 		}
 }
 #############################################################################
 #REGION:: BUILD REPORT
-Write-Host "Combine results and write the report on $($ServerName) at $(Get-Date)" -foregroundcolor yellow
+Write-Status -Status Information -Message "Combine results and write the report on $($ServerName) at $(Get-Date)"
 	
 [void]$ReportHTMLArray.Add($($InternetInfo | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($HostName) </font> | Internet Connection info </H3></td></tr></table>"))
 	
@@ -1037,7 +1063,7 @@ $ReportHTML += $Footer
 #foreach ($WL in $WarningLogins) { $ReportHTML = $ReportHTML.ToLower() -replace $WL,"<font color='red'>$WL</font>" }
 $ReportFile = $ReportFilePath + "\" + $computerOS.PSComputerName + "-HEALTH-REPORT-" + ((Get-Date -Format dd.MM.yy).ToString()) + "-" + ((get-date -Format HH.mm.ss).ToString()) + ".html"
 $ReportHTML | Out-File $ReportFile
-if (Test-Path -Path $ReportFile -ErrorAction 0) { Write-Host "Report file $ReportFile created successfully."}
+if (Test-Path -Path $ReportFile -ErrorAction 0) { Write-Status -Status Information -Message "Report file $ReportFile created successfully."}
 else { Write-warning "Report file could not be created." -foregroundColor Magenta }
 
 # Optionaly Send Report by email - $ReportData structure
@@ -1051,7 +1077,7 @@ if ($emailTo -ne "") { #Send Email Report
 			if ($NULL -ne $DomainSMTPServer) { $smtpServer = $DomainSMTPServer }
 		}
 		if ([System.Net.Sockets.TcpClient]::new().ConnectAsync($smtpServer, $SmtpServerPort).Wait(600)) {
-		Write-Host "Sending report to $($emailTo) by SMTP:$smtpServer" -foreground magenta
+		Write-Status -Status Information -Message "Sending report to $($emailTo) by SMTP:$smtpServer"
 		$emailMessage = New-Object System.Net.Mail.MailMessage
 		$emailMessage.Priority = $emailpriority 
 		$emailMessage.From = $emailFrom
@@ -1067,7 +1093,7 @@ if ($emailTo -ne "") { #Send Email Report
 		if ( ($emailSmtpUser -ne "") -and ($emailSmtpPass -ne "")) {$SMTPClient.Credentials = New-Object System.Net.NetworkCredential( $emailSmtpUser , $emailSmtpPass );}
 		$SMTPClient.Send( $emailMessage )
 		}
-		else {Write-Host "No SMTP servers available" -foreground magenta}		
+		else {Write-Status -Status Error -Message "No SMTP servers available"}		
 }
 
 #############################################################################
@@ -1076,6 +1102,6 @@ Get-Job | Remove-Job -force
 Get-variable * | Remove-variable -Scope Script -ErrorAction 0
 #############################################################################
 #REGION:: DONE
-Write-Host "All DONE." -ForegroundColor Yellow
+Write-Status -Status Information -Message "All DONE."
 [console]::Beep(1000, 300)
 #############################################################################
