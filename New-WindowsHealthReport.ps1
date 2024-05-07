@@ -255,21 +255,21 @@ function Detect-WindowsAVInstalled { #Detect AV intalled and get basic info
 		if ($AVInstalled) { #AV installd, getting basic info
 			foreach ($item in $AVInstalled) {
             $hx = '0x{0:x}' -f $item.ProductState; $mid = $hx.Substring(3, 2); $end = $hx.Substring(5)
-            if ($mid -match "00|01") { $Enabled = $False; $w += "<div>WAV: Warning: `t<i>$ServerName has Antivirus $($item.Displayname) disabled.</i></div>" } else { $Enabled = $True }
-            if ($end -eq "00") { $UpToDate = $True } else { $UpToDate = $False; $w += "<div>WAV: Warning: `t<i>$ServerName has Antivirus $($item.Displayname) out of date.</i></div>"  }
+            if ($mid -match "00|01") { $Enabled = $False; $w += "<div>WAV: Warning: `t<i>$ServerName has Antivirus $($item.Displayname) disabled.</i></div>`r`n" } else { $Enabled = $True }
+            if ($end -eq "00") { $UpToDate = $True } else { $UpToDate = $False; $w += "<div>WAV: Warning: `t<i>$ServerName has Antivirus $($item.Displayname) out of date.</i></div>`r`n"  }
 				#Collecting results
             [void]$r.Add($($item | Select-Object @{Name='Antivirus Installed'; Expression = { $true} }, Displayname, ProductState, @{Name = "Enabled"; Expression = { $Enabled } }, @{Name = "UpToDate"; Expression = { $UptoDate } }, @{Name = "Path"; Expression = { $_.pathToSignedProductExe } }, Timestamp))
 			}
 		} #if
 		else { #AV SW Not Detected
-			$w += "<div>WAV: Warning: `t<i>$ServerName has no Antivirus installed.</i></div>"
+			$w += "<div>WAV: Warning: `t<i>$ServerName has no Antivirus installed.</i></div>`r`n"
 		}
 	}
 	else { #Server OS
 		$WinDefender = Get-WindowsFeature -ComputerName $ServerName | Where-Object {$_.InstallState -eq 'Installed' -and $_.DisplayName -match 'Defender'}
 				#Collecting results
       if ($WinDefender) {[void]$r.Add([PSCustomObject]@{'Antivirus Installed'=$true; DisplayName='Windows Defender Antivirus'})}
-		else { $Enabled = $False; $w += "<div>WAV: Warning: `t<i>Windows Defender AV not installed.</i></div>"
+		else { $Enabled = $False; $w += "<div>WAV: Warning: `t<i>Windows Defender AV not installed.</i></div>`r`n"
 		#TODO: try to detect other AV installed
 		}
 	}
@@ -367,9 +367,9 @@ else {
 }
 }
 #Check Language mode locally and remotely
-if ($ExecutionContext.Sessionstate.LanguageMode -ne 'FullLanguage') {[void]$Problems.Add("<div>`r`nRUNTIME: Warning: `t<i>The Local POWERSHELL is not in FULL LANGUAGE MODE. The report will have limited details.</i></div>")}
+if ($ExecutionContext.Sessionstate.LanguageMode -ne 'FullLanguage') {[void]$Problems.Add("<div>RUNTIME: Warning: `t<i>The Local POWERSHELL is not in FULL LANGUAGE MODE. The report will have limited details.</i></div>`r`n")}
 $remotesesstion = New-PSSession -ComputerName $ServerName
-if ((Invoke-Command -Session $remotesesstion -ScriptBlock { $ExecutionContext.SessionState.LanguageMode }).Value -ne 'FullLanguage') {[void]$Problems.Add("<div>`r`nRUNTIME: Warning: `t<i>The POWERSHELL on host $ServerName is not in FULL LANGUAGE MODE. The report will have limited details or unreliable details.</i></div>")}
+if ((Invoke-Command -Session $remotesesstion -ScriptBlock { $ExecutionContext.SessionState.LanguageMode }).Value -ne 'FullLanguage') {[void]$Problems.Add("<div>RUNTIME: Warning: `t<i>The POWERSHELL on host $ServerName is not in FULL LANGUAGE MODE. The report will have limited details or unreliable details.</i></div>`r`n")}
 Remove-PSSession -Id $remotesesstion.Id
 #Verify Escalated execution, if nor try to rise
 $RTUser = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -419,21 +419,21 @@ if ($install) {
 #REGION:: Check Networking
 # Check Server IP address and issue warning if the public IP is detected
 # Test Connection and warn if no responce
-if (!(test-connection $ServerName -count 1 -quiet -ErrorAction 0)) {Write-Warning "No responce from the host $ServerName."; [void]$Problems.Add("<div>`r`nRUNTIME: Warning: `t<i>No ping responce from the host: $ServerName.</i></div>")}
+if (!(test-connection $ServerName -count 1 -quiet -ErrorAction 0)) {Write-Warning "No responce from the host $ServerName."; [void]$Problems.Add("<div>RUNTIME: Warning: `t<i>No ping responce from the host: $ServerName.</i></div>`r`n")}
 $ServerNameIPResolved =  ((Test-Connection $ServerName -count 1 | Select-Object @{Name=$ServerName;Expression={$_.Address}},Ipv4Address).IPV4Address).IPAddressToString
 if (($ServerNameIPResolved -NOTMATCH "^192\.168\.") -AND ($ServerNameIPResolved -NOTMATCH "^172\.(1[6-9]|2[0-9]|3[0-1])\.") -AND ($ServerNameIPResolved -NOTMATCH "^10\.") -AND ($ServerNameIPResolved -NOTMATCH "^127\.0\.0")) {
-	Write-Warning "The IP Address for host $ServerName is resolved to Public v4 IP [$ServerNameIPResolved]. Report could may be proceeded incorrectly."; [void]$Problems.Add("<div>`r`nRUNTIME: Warning: `t<i>The IP Address for host $ServerName is resolved to Public v4 IP [$ServerNameIPResolved]. Report could not be proceeded correctly.</i></div>")
+	Write-Warning "The IP Address for host $ServerName is resolved to Public v4 IP [$ServerNameIPResolved]. Report could may be proceeded incorrectly."; [void]$Problems.Add("<div>RUNTIME: Warning: `t<i>The IP Address for host $ServerName is resolved to Public v4 IP [$ServerNameIPResolved]. Report could not be proceeded correctly.</i></div>`r`n")
 	#try to obtain Host local IP 
 	$HostIpv4Addresses = Get-WmiObject Win32_NetworkAdapterConfiguration -ComputerName $ServerName -filter 'IPEnabled="True"' | Select-Object -ExpandProperty IPAddress | Where-Object{$_ -notmatch ':'}
 	$HostIpv4Addresses.foreach({if (($_ -MATCH "^192\.168\.") -or ($_ -MATCH "^172\.(1[6-9]|2[0-9]|3[0-1])\.") -or ($_ -MATCH "^10\.")) {$ServerName = $_} 
 	else {
-		[void]$Problems.Add("<div>`r`nNET: Warning: `t<i>The host $ServerName has Public IP v4 address [$_].</i></div>")
+		[void]$Problems.Add("<div>NET: Warning: `t<i>The host $ServerName has Public IP v4 address [$_].</i></div>`r`n")
 		
 	}})
 }
 $HostName = (Get-WmiObject win32_computersystem -ComputerName $ServerName).Name
 try {$InternetInfo = Invoke-RestMethod "http://ipinfo.io/json" | Select-Object ip,hostname,city,region,country}
-catch {[void]$Problems.Add("<div>`r`nNET: Warning: `t<i>The host $ServerName has probably no internet access.</i></div>")}
+catch {[void]$Problems.Add("<div>NET: Warning: `t<i>The host $ServerName has probably no internet access.</i></div>`r`n")}
 if (($emailFrom -notmatch '^[A-Z0-9._%+-]+@(?:[A-Z0-9-]+\.)+[A-Z]{2,}$') -and ($InternetInfo)) { $EmailFrom = $InternetInfo.hostname -replace '^(.*?)\.', '${1}@' }
 $InternetInfo | Add-Member -MemberType NoteProperty -Name "DIAG" -Value (@{ 'hostname' = 'n' })
 #############################################################################
@@ -442,20 +442,20 @@ $InternetInfo | Add-Member -MemberType NoteProperty -Name "DIAG" -Value (@{ 'hos
 	$DomainName = ((Get-WmiObject win32_computersystem -ComputerName $ServerName).Domain -Split "\.")[0]
 	Write-Verbose "Host Name is : $HostName ; Local Domain is : $DomainName"
 	$DCName = (Get-WmiObject -Class win32_ntdomain -Filter "DomainName = '$DomainName'" -ComputerName $ServerName).DomainControllerName
-	if (!$DCName) {[void]$Problems.Add("<div>`r`nLAN: Info: `t<i>No Domain Controller (Workgroup Env.).</i></div>")}
+	if (!$DCName) {[void]$Problems.Add("<div>LAN: Info: `t<i>No Domain Controller (Workgroup Env.).</i></div>`r`n")}
 	Write-Verbose "DC Name is $DCName"
 #############################################################################
 #REGION:: Get HOST Win OS Info
 	$computerSystem = get-wmiobject Win32_ComputerSystem -ComputerName $ServerName | Select-Object -property *
-	if ($computerSystem.DomainRole -lt 2) {[void]$Problems.Add("<div>`r`nOS: Warning: `t<i>Target OS at $ServerName is not Server OS. Result may not be reliable.</i></div>"); $DIAG.Add('Role', 'w')}
+	if ($computerSystem.DomainRole -lt 2) {[void]$Problems.Add("<div>OS: Warning: `t<i>Target OS at $ServerName is not Server OS. Result may not be reliable.</i></div>`r`n"); $DIAG.Add('Role', 'w')}
 	$computerOS = get-wmiobject Win32_OperatingSystem -ComputerName $ServerName | Select-Object -property *
-	if ([math]::ceiling((NEW-TIMESPAN -Start (Get-CimInstance -ComputerName $ServerName Win32_OperatingSystem).InstallDate -end (get-date)).days /365) -gt 4) {[void]$Problems.Add("<div>`r`nOS: Warning: `t<i>This OS installation is too old.</i></div>"); $DIAG.Add('Installed', 'w')}
-	if ([math]::ceiling($computerOS.FreePhysicalMemory /1MB) -lt $RAMLowFreeLimit) {[void]$Problems.Add("<div>`r`nOS: Warning: `t<i>Low Free RAM on $ServerName : $([math]::ceiling($computerOS.FreePhysicalMemory /1MB)) GB.</i></div>"); $DIAG.Add('Free RAM (GB)', 'w')}
+	if ([math]::ceiling((NEW-TIMESPAN -Start (Get-CimInstance -ComputerName $ServerName Win32_OperatingSystem).InstallDate -end (get-date)).days /365) -gt 4) {[void]$Problems.Add("<div>OS: Warning: `t<i>This OS installation is too old.</i></div>`r`n"); $DIAG.Add('Installed', 'w')}
+	if ([math]::ceiling($computerOS.FreePhysicalMemory /1MB) -lt $RAMLowFreeLimit) {[void]$Problems.Add("<div>OS: Warning: `t<i>Low Free RAM on $ServerName : $([math]::ceiling($computerOS.FreePhysicalMemory /1MB)) GB.</i></div>`r`n"); $DIAG.Add('Free RAM (GB)', 'w')}
 	$HostOSinfo = [PSCustomObject]@{'DIAG'=$DIAG; 'Installed' = ([Management.ManagementDateTimeConverter]::ToDateTime($computerOS.InstallDate)).ToString("dd.MM.yyyy"); 'PCName' = $computerOS.PSComputerName; 'Role' = $ComputerRole[$computerSystem.DomainRole]; 'Domain' = $DomainName; 'Note' = $computerOS.Description; 'BootTime' = ([Management.ManagementDateTimeConverter]::ToDateTime($computerOS.LastBootUpTime)).ToString("dd.MM.yyyy"); 'BootupState' = $computerSystem.BootupState; 'OS' = $computerOS.caption; 'SP' = $computerOS.ServicePackMajorVersion; 'Owner' = $computerOS.RegisteredUser; "Free RAM (GB)" = [math]::ceiling($computerOS.FreePhysicalMemory /1MB); 'WinDir' = $computerOS.WindowsDirectory; 'OS Lang' = [System.Globalization.CultureInfo]::GetCultureInfo([int]$computerOS.OSLanguage).DisplayName; 'Reboot Pending' = (Get-PendingRebootState -ServerName $ServerName) }
-	if (!$HostOSinfo) {[void]$Problems.Add("<div>`r`nOS: <b>Error:</b> `t<i>No Access to WMI at $ServerName.</i></div>"); }
-	if ($HostOSinfo.'Reboot Pending') {[void]$Problems.Add("<div>`r`nOS: Warning: `t<i>$ServerName OS Reboot Pending.</i></div>"); $HostOSinfo.DIAG.Add('Reboot Pending','w')}
+	if (!$HostOSinfo) {[void]$Problems.Add("<div>OS: <b>Error:</b> `t<i>No Access to WMI at $ServerName.</i></div>`r`n"); }
+	if ($HostOSinfo.'Reboot Pending') {[void]$Problems.Add("<div>OS: Warning: `t<i>$ServerName OS Reboot Pending.</i></div>`r`n"); $HostOSinfo.DIAG.Add('Reboot Pending','w')}
 	$OSLicensing = Get-CimInstance SoftwareLicensingProduct -Filter "Name like 'Windows%'" -ComputerName $ServerName | Where-Object { $_.PartialProductKey } | Select-Object Name, Description, LicenseStatus
-	if ($OSLicensing.LicenseStatus -ne 1) {[void]$Problems.Add("<div>`r`nOS: <b>Error:</b> `t<i>The licensing status: $($OSLicensingStatus[$OSLicensing.LicenseStatus]) for the $HostName is not normal.</i></div>"); $OSLicensing.psobject.properties.Add([psnoteproperty]::new('DIAG',@{'LicenseStatus'='e'}))} else { $OSLicensing.psobject.properties.Add([psnoteproperty]::new('DIAG', @{ 'LicenseStatus' = 'n' }))}
+	if ($OSLicensing.LicenseStatus -ne 1) {[void]$Problems.Add("<div>OS: <b>Error:</b> `t<i>The licensing status: $($OSLicensingStatus[$OSLicensing.LicenseStatus]) for the $HostName is not normal.</i></div>`r`n"); $OSLicensing.psobject.properties.Add([psnoteproperty]::new('DIAG',@{'LicenseStatus'='e'}))} else { $OSLicensing.psobject.properties.Add([psnoteproperty]::new('DIAG', @{ 'LicenseStatus' = 'n' }))}
 #############################################################################
 #REGION:: MODULES - CODE TO RUN as JOBS
 $rWHW = { #HW info : run remotely
@@ -465,11 +465,11 @@ $rWHW = { #HW info : run remotely
 		$computerSystem = get-wmiobject Win32_ComputerSystem -ComputerName $ServerName | Select-Object -property *
 		$SecBOOTEnabled = Confirm-SecureBootUEFI
 		$SysTemperature = ((Get-WMIObject -ComputerName $ServerName -Query "SELECT * FROM Win32_PerfFormattedData_Counters_ThermalZoneInformation" -Namespace "root/CIMV2" | Select-Object HighPrecisionTemperature).HighPrecisionTemperature - 2732) / 10.0
-	if (($computerSystem.TotalPhysicalMemory/1GB) -le 8) { $w = "<div>`r`nRAM: Warning: `t<i>The total amount of RAM installed is insufficient.</i></div>"; $DIAG.Add('RAM (GB)', 'w') }
-	if (($computerSystem.TotalPhysicalMemory/1GB) -le 4) { $w = "<div>`r`nRAM: <b>Error:</b> `t<i>The total amount of RAM installed is low.</i></div>"; $DIAG.Add('RAM (GB)', 'e') }
-	if (($SysTemperature) -gt 40) { $w += "<div>`r`nCooling: <b>Error:</b> `t<i>The system temperature is high.</i></div>"; $DIAG.Add('System Temperature', 'e') }
-	elseif (($SysTemperature) -gt 30) { $w += "<div>`r`nCooling: Warning: `t<i>The system temperature is ubnormal.</i></div>"; $DIAG.Add('System Temperature', 'w') }
-	if (!$SecBOOTEnabled) { $w += "<div>`r`nOS: Warning: `t<i>Secure boot</i> is not enabled.</div>"; $DIAG.Add('Secure BOOT', 'w') }
+	if (($computerSystem.TotalPhysicalMemory/1GB) -le 8) { $w = "<div>RAM: Warning: `t<i>The total amount of RAM installed is insufficient.</i></div>`r`n"; $DIAG.Add('RAM (GB)', 'w') }
+	if (($computerSystem.TotalPhysicalMemory/1GB) -le 4) { $w = "<div>RAM: <b>Error:</b> `t<i>The total amount of RAM installed is low.</i></div>`r`n"; $DIAG.Add('RAM (GB)', 'e') }
+	if (($SysTemperature) -gt 40) { $w += "<div>Cooling: <b>Error:</b> `t<i>The system temperature is high.</i></div>`r`n"; $DIAG.Add('System Temperature', 'e') }
+	elseif (($SysTemperature) -gt 30) { $w += "<div>Cooling: Warning: `t<i>The system temperature is ubnormal.</i></div>`r`n"; $DIAG.Add('System Temperature', 'w') }
+	if (!$SecBOOTEnabled) { $w += "<div>OS: Warning: `t<i>Secure boot</i> is not enabled.</div>"; $DIAG.Add('Secure BOOT', 'w') }
 		#Build the HW info object 
 	[void]$r.Add([PSCustomObject]@{'DIAG'=$DIAG; 'Manufacturer' = $computerSystem.Manufacturer; 'Model' = $computerSystem.Model; 'BIOS Vendor' = $computerBIOS.Manufacturer; 'SerialNumber' = $computerBIOS.SerialNumber; 'BIOS Version' = $computerBIOS.SMBIOSBIOSVersion; 'System Temperature' = $SysTemperature;'RAM (GB)' = "{0:N1}" -f ($computerSystem.TotalPhysicalMemory/1GB); 'Secure BOOT' = $SecBOOTEnabled;})
 	[pscustomobject]@{'Warnings'=$w; 'report'=$r}
@@ -478,11 +478,11 @@ $rCPU = { #CPU info : run local or remotely
 	param ($ServerName)
 	$w = @();[Collections.ArrayList]$r=@();$DIAG=@{}
 		$CPULoad = [math]::ceiling(((Get-CimInstance -ComputerName $ServerName -ClassName Win32_Processor).LoadPercentage | Measure-Object -Average).Average)
-		if (($CPULoad) -gt 90) { $w += "<div>`r`nCPU: <b>Error:</b> `t<i>CPU load is high.</i></div>"; $DIAG.Add('CPU Load', 'e') }
-		elseif (($CPULoad) -gt 70) { $w += "<div>`r`nCPU: Warning: `t<i>CPU load is ubnormal.</i></div>"; $DIAG.Add('CPU Load', 'w') }
+		if (($CPULoad) -gt 90) { $w += "<div>CPU: <b>Error:</b> `t<i>CPU load is high.</i></div>`r`n"; $DIAG.Add('CPU Load', 'e') }
+		elseif (($CPULoad) -gt 70) { $w += "<div>CPU: Warning: `t<i>CPU load is ubnormal.</i></div>`r`n"; $DIAG.Add('CPU Load', 'w') }
 	 	$computerCPU = [object[]](get-wmiobject Win32_Processor -ComputerName $ServerName -Property DeviceID, Name, NumberOfCores, NumberOfLogicalProcessors, SocketDesignation, MaxClockSpeed)
 		$computerCPU.Foreach({
-			if ($_.NumberOfLogicalProcessors -le 2) { $w = "<div>`r`nCPU: Warning: `t<i>The number of CPU cores is low.</i></div>"; $DIAG.Add('Logical Processors', 'w') }
+			if ($_.NumberOfLogicalProcessors -le 2) { $w = "<div>CPU: Warning: `t<i>The number of CPU cores is low.</i></div>`r`n"; $DIAG.Add('Logical Processors', 'w') }
 			[void]$r.Add([PSCustomObject]@{'DIAG'=$DIAG; 'CPU' = $_.Name; 'Socket' = $_.SocketDesignation; 'Cores' = $_.NumberOfCores; 'Logical Processors' = $_.NumberOfLogicalProcessors; 'Freq GHz' = [math]::floor($_.MaxClockSpeed/1024) ; 'CPU Load' = $CPULoad})
 		})
 	[pscustomobject]@{'Warnings'=$w; 'report'=$r}
@@ -493,8 +493,8 @@ $rHDD = { #HDD State : run remotely
 		$PhisicalDrive = [object[]](Get-PhysicalDisk | select-Object -Property FriendlyName,Model,HealthStatus,OperationalStatus,PhysicalLocation,SerialNumber,Size,BusType,DeviceId,MediaType,SpindleSpeed,Usage)
 	$PhisicalDrive.Foreach({
 			$DIAG = @{ }
-			if (($_.OperationalStatus) -ne 'OK') {$w +="<div>`r`nDRIVE: <b>Error:</b> `t<i>Drive: $_.FriendlyName operational status is $_.OperationalStatus.</i></div>"; $DIAG.Add('OperationalStatus', 'e')} else { $DIAG.Add('OperationalStatus', 'n')}
-			if (($_.HealthStatus) -ne 'Healthy') {$w +="<div>`r`nDRIVE: <b>Error:</b> `t<i>Drive: $_.FriendlyName health status is $_.HealthStatus.</i></div>"; $DIAG.Add('HealthStatus', 'e')} else { $DIAG.Add('HealthStatus', 'n')}
+			if (($_.OperationalStatus) -ne 'OK') {$w +="<div>DRIVE: <b>Error:</b> `t<i>Drive: $_.FriendlyName operational status is $_.OperationalStatus.</i></div>`r`n"; $DIAG.Add('OperationalStatus', 'e')} else { $DIAG.Add('OperationalStatus', 'n')}
+			if (($_.HealthStatus) -ne 'Healthy') {$w +="<div>DRIVE: <b>Error:</b> `t<i>Drive: $_.FriendlyName health status is $_.HealthStatus.</i></div>`r`n"; $DIAG.Add('HealthStatus', 'e')} else { $DIAG.Add('HealthStatus', 'n')}
 			[void]$r.Add([PSCustomObject]@{'DIAG'=$DIAG; 'DeviceId'=$_.DeviceId;'Model'=$_.Model;'Name'=$_.FriendlyName;'SerialNumber'=$_.SerialNumber;'MediaType'=$_.MediaType;'SpindleSpeed'=$_.SpindleSpeed;'BusType'=$_.BusType;'PhysicalLocation'=$_.PhysicalLocation;'Size (GB)' = "{0:N2}" -f ($_.Size/1GB);'OperationalStatus'=$_.OperationalStatus;'HealthStatus'=$_.HealthStatus;'Usage'=$_.Usage;});
 		}) 
 	[pscustomobject]@{'Warnings'=$w; 'report'=$r}
@@ -506,8 +506,8 @@ $rVOL = { #Vol space : run remotely
 		$LogicalDrive = ([object[]](Get-WmiObject Win32_LogicalDisk -ComputerName $ServerName)).where({($_.Size -gt 0) -and ($_.DriveType -eq 3) })
 	$LogicalDrive.Foreach({
 			$DIAG = @{ }
-			if (([math]::ceiling($_.FreeSpace/1GB) -lt ($DriveLowFreeSpaceLimit/2)) -and ([math]::ceiling($_.FreeSpace/$_.Size*100) -lt 25)) {$w +="<div>`r`nVOL: <b>Error:</b> `t<i>Drive free space is very low, drive: $($_.DeviceID) free space: $([math]::ceiling($_.FreeSpace/1GB)) GB.</i></div>"; $DIAG ='Error'}
-		 	elseif (([math]::ceiling($_.FreeSpace/1GB) -lt $DriveLowFreeSpaceLimit) -and ([math]::ceiling($_.FreeSpace/$_.Size*100) -lt 25)) {$w +="<div>`r`nVOL: Warning: `t<i>Drive free space is low, drive: $($_.DeviceID) free space: $([math]::ceiling($_.FreeSpace/1GB)) GB.</i></div>"; $DIAG ='Warning'}
+			if (([math]::ceiling($_.FreeSpace/1GB) -lt ($DriveLowFreeSpaceLimit/2)) -and ([math]::ceiling($_.FreeSpace/$_.Size*100) -lt 25)) {$w +="<div>VOL: <b>Error:</b> `t<i>Drive free space is very low, drive: $($_.DeviceID) free space: $([math]::ceiling($_.FreeSpace/1GB)) GB.</i></div>`r`n"; $DIAG ='Error'}
+		 	elseif (([math]::ceiling($_.FreeSpace/1GB) -lt $DriveLowFreeSpaceLimit) -and ([math]::ceiling($_.FreeSpace/$_.Size*100) -lt 25)) {$w +="<div>VOL: Warning: `t<i>Drive free space is low, drive: $($_.DeviceID) free space: $([math]::ceiling($_.FreeSpace/1GB)) GB.</i></div>`r`n"; $DIAG ='Warning'}
          else { $DIAG = 'NORMAL'}
 		 [void]$r.Add([PSCustomObject]@{'DIAG'=$DIAG; 'Drive' = $_.DeviceID; 'Label' = $_.VolumeName; 'Size (GB)' = "{0:N2}" -f ($_.Size/1GB); 'Free (GB)' = "{0:N2}" -f ($_.FreeSpace/1GB); '% Free' = "{0:P0}" -f ($_.FreeSpace/$_.Size);}); 
 		}) 	
@@ -528,15 +528,15 @@ $AZS = { #AZureAD Join State : run remotely
 		if ($cmdOutput)
 		{
 			$AZStatus = [PSCustomObject]@{ 'DIAG' = @{ }; 'Tenant ID' = ($cmdOutput | Where-Object{ $_ -match 'Tenant ID' }).Split(":")[1].trim(); 'Resource Name' = ($cmdOutput | Where-Object{ $_ -match 'Resource Name' }).Split(":")[1].trim(); 'Agent Status' = ($cmdOutput | Where-Object{ $_ -match 'Agent Status' }).Split(":")[1].trim(); 'Agent Last Heartbeat' = ($cmdOutput | Where-Object{ $_ -match 'Agent Last Heartbeat' }).Split(":")[1].trim(); 'Agent Error Details' = ($cmdOutput | Where-Object{ $_ -match 'Agent Error Details' }).Split(":")[1].trim(); 'GC Service (gcarcservice)' = ($cmdOutput | Where-Object{ $_ -match 'gcarcservice' }).Split(":")[1].trim() }
-			if ($AZStatus.'Agent Status' -ne 'Connected') { $AZStatus.DIAG.Add('Agent Status', 'w'); $w += "<div>`r`nAZ: Warning: `t<i>Connection to Azure is not estableshed.</i></div>" }
-			if (([math]::ceiling((New-TimeSpan -end (Get-Date) -Start ([DateTime]::ParseExact($AZStatus.'Agent Last Heartbeat', 'yyyy-MM-ddTHH', $null))).TotalHours)) -gt 2) { $AZStatus.DIAG.Add('Agent Last Heartbeat', 'w'); $w += "<div>`r`nAZ: Warning: `t<i>Azure Agent connection is delayed.</i></div>" }
-			if (([math]::ceiling((New-TimeSpan -end (Get-Date) -Start ([DateTime]::ParseExact($AZStatus.'Agent Last Heartbeat', 'yyyy-MM-ddTHH', $null))).TotalHours)) -gt 3) { $AZStatus.DIAG.Add('Agent Last Heartbeat', 'e'); $w += "<div>`r`nAZ: <b>Error:</b> `t<i>Last Azure Agent connection long ago.</i></div>" }
-			if (![string]::IsNullOrEmpty($AZStatus.'Agent Error Details')) { $AZStatus.DIAG.Add('Agent Error Details', 'e'); $w += "<div>`r`nAZ: <b>Error:</b> `t<i>Error in Azure Agent.</i></div>" }
-			if ($AZStatus.'GC Service (gcarcservice)' -ne 'running') { $AZStatus.DIAG.Add('GC Service (gcarcservice)', 'e'); $w += "<div>`r`nAZ: <b>Error:</b> `t<i>Azure Agent Service is not running.</i></div>" }
+			if ($AZStatus.'Agent Status' -ne 'Connected') { $AZStatus.DIAG.Add('Agent Status', 'w'); $w += "<div>AZ: Warning: `t<i>Connection to Azure is not estableshed.</i></div>`r`n" }
+			if (([math]::ceiling((New-TimeSpan -end (Get-Date) -Start ([DateTime]::ParseExact($AZStatus.'Agent Last Heartbeat', 'yyyy-MM-ddTHH', $null))).TotalHours)) -gt 2) { $AZStatus.DIAG.Add('Agent Last Heartbeat', 'w'); $w += "<div>AZ: Warning: `t<i>Azure Agent connection is delayed.</i></div>`r`n" }
+			if (([math]::ceiling((New-TimeSpan -end (Get-Date) -Start ([DateTime]::ParseExact($AZStatus.'Agent Last Heartbeat', 'yyyy-MM-ddTHH', $null))).TotalHours)) -gt 3) { $AZStatus.DIAG.Add('Agent Last Heartbeat', 'e'); $w += "<div>AZ: <b>Error:</b> `t<i>Last Azure Agent connection long ago.</i></div>`r`n" }
+			if (![string]::IsNullOrEmpty($AZStatus.'Agent Error Details')) { $AZStatus.DIAG.Add('Agent Error Details', 'e'); $w += "<div>AZ: <b>Error:</b> `t<i>Error in Azure Agent.</i></div>`r`n" }
+			if ($AZStatus.'GC Service (gcarcservice)' -ne 'running') { $AZStatus.DIAG.Add('GC Service (gcarcservice)', 'e'); $w += "<div>AZ: <b>Error:</b> `t<i>Azure Agent Service is not running.</i></div>`r`n" }
 		}
 	}
 	catch { }
-	if (!$AZStatus) { $w += "<div>`r`nAZ: Info: `t<i>The host is not assigned to any MS365 tenant.</i></div>" }
+	if (!$AZStatus) { $w += "<div>AZ: Info: `t<i>The host is not assigned to any MS365 tenant.</i></div>`r`n" }
 	else { [void]$r.Add($AZStatus)}
 	[pscustomobject]@{'Warnings'=$w; 'report'=$r}
 }
@@ -547,10 +547,10 @@ $rWUA = { #WUpdate queue : run remotely
 		$updatesearcher = $session.CreateUpdateSearcher()
 		$searchresult = $updatesearcher.Search("IsInstalled=0")
 		foreach ($update in $searchresult.Updates) {
-		  if ($update.Title -match 'Security') {$w ="<div>`r`nWUA: Warning: `t<i>Security patches are ready to install.</i></div>"; $DIAG ='Warning'} else { $DIAG = 'UNKNOWN'}
+		  if ($update.Title -match 'Security') {$w ="<div>WUA: Warning: `t<i>Security patches are ready to install.</i></div>`r`n"; $DIAG ='Warning'} else { $DIAG = 'UNKNOWN'}
 		  [void]$r.Add($([PSCustomObject]@{ 'DIAG' = $DIAG; 'Title' = $update.Title; 'KB' = $($update.KBArticleIDs); }))
 		}
-	if ($r.count -gt 4) {$w +="<div>`r`nWUA: Warning: `t<i>Too much Windows Updates available were not installed.</i></div>"}
+	if ($r.count -gt 4) {$w +="<div>WUA: Warning: `t<i>Too much Windows Updates available were not installed.</i></div>`r`n"}
 	[pscustomobject]@{'Warnings'=$w; 'report'=$r}
 }
 $rPUNS = { # Unsigned running processes : run remotely
@@ -569,7 +569,7 @@ $rPUNS = { # Unsigned running processes : run remotely
 				[void]$r.Add($($prc | Select-Object DIAG,OriginalFilename,FileDescription,CompanyName,FileName,SignatureStatusMessage,SignatureSubject))
 			}
 		}
-		if ($r.count -gt 1) {$w +="<div>`r`nPROC: Warning: `t<i>Some running processes have untrusted signature.</i></div>"}
+		if ($r.count -gt 1) {$w +="<div>PROC: Warning: `t<i>Some running processes have untrusted signature.</i></div>`r`n"}
 	[pscustomobject]@{'Warnings'=$w; 'report'=$r}
 }
 $rNTP = { #get time sync config and status : run remotely!
@@ -587,7 +587,7 @@ $rNTP = { #get time sync config and status : run remotely!
              $ConfiguredNTPServerByPolicy = $false; $ConfiguredNTPServerNameRaw = ((Get-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\Parameters -Name 'NtpServer').NtpServer).Trim()
           }
         if ($ConfiguredNTPServerNameRaw) { $ConfiguredNTPServerName = $ConfiguredNTPServerNameRaw.Split(' ') -replace ',0x.*' }
-        else {$w += "<div>`r`nNTP: Warning: `t<i>Windows Time Service not configured</i></div>"; $DIAG.Add('Configured NTP Server Name', 'w')}
+        else {$w += "<div>NTP: Warning: `t<i>Windows Time Service not configured</i></div>`r`n"; $DIAG.Add('Configured NTP Server Name', 'w')}
 
         #Get service status
         $NTPServiceStatus = (Get-Service -Name W32Time).Status
@@ -600,7 +600,7 @@ $rNTP = { #get time sync config and status : run remotely!
             $sourceNameRaw = $sourceNameRaw.ToString().Replace('Source:', '').Trim()
             $SourceName = $sourceNameRaw -replace ',0x.*'
         }
-        else {$w += "<div>`r`nNTP: <b>Error:</b> `t<i>Data from w32tm was not obtained</i></div>"; $DIAG.Add('NTP Source Name', 'e')}
+        else {$w += "<div>NTP: <b>Error:</b> `t<i>Data from w32tm was not obtained</i></div>`r`n"; $DIAG.Add('NTP Source Name', 'e')}
 
         $lastTimeSynchronizationDateTimeRaw = $w32tmOutput | Select-String -Pattern '^Last Successful Sync Time:'
         $StatusDateTime = $false
@@ -608,7 +608,7 @@ $rNTP = { #get time sync config and status : run remotely!
         {
             $lastTimeSynchronizationDateTimeRaw = $lastTimeSynchronizationDateTimeRaw.ToString().Replace('Last Successful Sync Time:', '').Trim()
             <# Last time synchronization: Test: Date and time #>
-            if ($lastTimeSynchronizationDateTimeRaw -eq 'unspecified') {$w += "<div>`r`nNTP: <b>Error:</b> `t<i>Last time synchronization date and time: Unknown</i></div>"; $DIAG.Add('Last Time Sync DateTime', 'e')}
+            if ($lastTimeSynchronizationDateTimeRaw -eq 'unspecified') {$w += "<div>NTP: <b>Error:</b> `t<i>Last time synchronization date and time: Unknown</i></div>`r`n"; $DIAG.Add('Last Time Sync DateTime', 'e')}
             else
             {
                 $LastTimeSynchronizationDateTime = Get-Date($lastTimeSynchronizationDateTimeRaw)
@@ -618,12 +618,12 @@ $rNTP = { #get time sync config and status : run remotely!
                 if ($LastTimeSynchronizationElapsedSeconds -eq $null -or $LastTimeSynchronizationElapsedSeconds -lt 0 -or $LastTimeSynchronizationElapsedSeconds -gt 1200)
                 {
                     $StatusLastTimeSynchronization = $false
-                    $w += "<div>`r`nNTP: Warning: `t<i>Last time synchronization Elapsed: $LastTimeSynchronizationElapsedSeconds seconds</i></div>"; $DIAG.Add('Last Time Sync Elapsed Seconds', 'w')
+                    $w += "<div>NTP: Warning: `t<i>Last time synchronization Elapsed: $LastTimeSynchronizationElapsedSeconds seconds</i></div>`r`n"; $DIAG.Add('Last Time Sync Elapsed Seconds', 'w')
                 }
                 else { $StatusLastTimeSynchronization = $true }
             }
         }
-        else { $w += "<div>`r`nNTP: <b>Error:</b> `t<i> Data from w32tm was not obtained</i></div>"; $DIAG.Add('NTP Service Status', 'e') }
+        else { $w += "<div>NTP: <b>Error:</b> `t<i> Data from w32tm was not obtained</i></div>`r`n"; $DIAG.Add('NTP Service Status', 'e') }
 			$TimeDiff = @()
 			$w32tmOutput = & 'w32tm' '/monitor' '/computers:tik.cesnet.cz,0.cz.pool.ntp.org,ntp.suas.cz'
 			$TimeDiffRaw = $w32tmOutput | Select-String -Pattern 'NTP:'
@@ -632,7 +632,7 @@ $rNTP = { #get time sync config and status : run remotely!
 			$maxTD = ($TimeDiff | ForEach-Object { [Math]::Abs($_) } | Measure-Object -Maximum).Maximum
 			foreach ($x in $TimeDiff) { if ([Math]::Abs($x) -eq $maxTD) { $maxTD = $x } }
 #Prepare output
-	if ([Math]::Abs($maxTD) -gt 19) {$w += "<div>`r`nNTP: <b>Error:</b> `t<i>Time gap between local and global time is high ($maxTD sec.).</i></div>"; $DIAG.Add('Time Gap with Internet Time (sec.)', 'e')}
+	if ([Math]::Abs($maxTD) -gt 19) {$w += "<div>NTP: <b>Error:</b> `t<i>Time gap between local and global time is high ($maxTD sec.).</i></div>`r`n"; $DIAG.Add('Time Gap with Internet Time (sec.)', 'e')}
 	[void]$r.Add($([PSCustomObject]@{'DIAG'=$DIAG; 'NTP Service Status' = $NTPServiceStatus; 'Configured NTP Server By Policy' = $ConfiguredNTPServerByPolicy; 'Configured NTP Server Name' = $ConfiguredNTPServerName; 'NTP Source Name'= $SourceName; 'Sync Status' = $StatusDateTime; 'Time Gap with Internet Time (sec.)'=$maxTD; 'Last Time Sync DateTime' = $LastTimeSynchronizationDateTime; 'Time Sync Success' = $StatusLastTimeSynchronization; 'Last Time Sync Elapsed Seconds' = $LastTimeSynchronizationElapsedSeconds;}))
 	[pscustomobject]@{'Warnings'=$w; 'report'=$r}
 }
@@ -648,7 +648,7 @@ $rSVC = { # Get Services anomalies : run remotely
 			$svc.AssemblyPath = $svc.AssemblyPath -replace '"'
 			$svc.psobject.properties.Add([psnoteproperty]::new('DIAG', $DIAG))
 			if ((-Not ($svc.AssemblyPath | Test-Path -PathType Leaf)) -and (!$svc.AssemblyPath -match '.exe$')) {$svc.AssemblyPath = ($svc.AssemblyPath + '.exe')}
-			if (-Not ($svc.AssemblyPath | Test-Path)) {$w ="<div>`r`nSVC: Warning: `t<i>Service with missed executable was found on the host $ServerName.</i></div>"; $svc.DIAG.Add('AssemblyPath', 'w')
+			if (-Not ($svc.AssemblyPath | Test-Path)) {$w ="<div>SVC: Warning: `t<i>Service with missed executable was found on the host $ServerName.</i></div>`r`n"; $svc.DIAG.Add('AssemblyPath', 'w')
 				[void]$r.Add($($svc | Select-Object -Property DIAG,Name,DisplayName,StartMode,State,Status,StartName,PathName,AssemblyPath,SignatureStatusMessage,SignatureSubject))
 			} #Service Exe not found
 			else {
@@ -658,11 +658,11 @@ $rSVC = { # Get Services anomalies : run remotely
 				#DEBUG
 				#$w +="<p>($svc | Select-Object -Property Name,DisplayName,StartMode,State,Status,StartName,PathName,AssemblyPath,SignatureStatusMessage,SignatureStatus)"
 			}
-			if ((($svc.StartMode -eq "Auto") -and ($svc.State -ne "Running"))) {$svc.DIAG.Add('State', 'e'); $w = "<div>`r`nSVC: <b>Error:</b> `t<i>Service $($svc.Name) is configured for Automatic startup but not running on the host $ServerName.</i></div>"; [void]$r.Add($($svc | Select-Object -Property DIAG,Name,DisplayName,StartMode,State,Status,StartName,PathName,AssemblyPath,SignatureStatusMessage,SignatureSubject))}
+			if ((($svc.StartMode -eq "Auto") -and ($svc.State -ne "Running"))) {$svc.DIAG.Add('State', 'e'); $w = "<div>SVC: <b>Error:</b> `t<i>Service $($svc.Name) is configured for Automatic startup but not running on the host $ServerName.</i></div>`r`n"; [void]$r.Add($($svc | Select-Object -Property DIAG,Name,DisplayName,StartMode,State,Status,StartName,PathName,AssemblyPath,SignatureStatusMessage,SignatureSubject))}
 			elseif ($svcSign.Status -ne 'Valid') { $svc.DIAG.Add('SignatureStatusMessage', 'w'); [void]$r.Add($($svc | Select-Object -Property DIAG, Name, DisplayName, StartMode, State, Status, StartName, PathName, AssemblyPath, SignatureStatusMessage, SignatureSubject)) }
 			elseif (($svc.StartName -match $DomainName) -or ($svc.StartName -match $ServerName)) { $svc.DIAG.Add('StartName', 'w'); [void]$r.Add($($svc | Select-Object -Property DIAG, Name, DisplayName, StartMode, State, Status, StartName, PathName, AssemblyPath, SignatureStatusMessage, SignatureSubject)) }
 		}  
-		if ($r.count -gt 1) {$w +="<div>`r`nSVC: Warning: `t<i>Strange Services detected.</i></div>"}
+		if ($r.count -gt 1) {$w +="<div>SVC: Warning: `t<i>Strange Services detected.</i></div>`r`n"}
 	[pscustomobject]@{'Warnings'=$w; 'report'=$r}
 }
 $rLUS = { #Get Logged ON Users : RUN Remotely		
@@ -720,17 +720,17 @@ $result
 			$qry = 'SELECT * FROM Win32_Process WHERE Name="explorer.exe"'
 			$lousers.foreach({ [string]$tn=$_.Username
 			    $_.Username = Get-WmiObject -Query $qry -ComputerName $ServerName| ForEach-Object { $_.GetOwner() } | Where-Object {$_.User -match $tn } | ForEach-Object {'{0}\{1}' -f $_.Domain, $_.User}
-			    if (Is-Admin $tn) {$_.psobject.properties.Add([psnoteproperty]::new("Is Local Admin",$true)); $_.psobject.properties.Add([psnoteproperty]::new("DIAG",'WARNING')); $w += "<div>`r`nOS: Warning: `tHigh privileged account <i>$tn</i> has active session.</div>"} else {$_.psobject.properties.Add([psnoteproperty]::new("Is Local Admin",$false))}
+			    if (Is-Admin $tn) {$_.psobject.properties.Add([psnoteproperty]::new("Is Local Admin",$true)); $_.psobject.properties.Add([psnoteproperty]::new("DIAG",'WARNING')); $w += "<div>OS: Warning: `tHigh privileged account <i>$tn</i> has active session.</div>"} else {$_.psobject.properties.Add([psnoteproperty]::new("Is Local Admin",$false))}
 			})
 			if (!$lousers) { # if no results from QUSER try to use WMI
 				$regexU = '({0})' -f ($ExcludeUsers -join "|")
 				$lousers = Get-WmiObject Win32_LoggedOnUser -ComputerName $ServerName | Select-Object -Property * | Select-Object Antecedent -Unique | Where-Object { $_.Antecedent.ToString().Split('"')[1] -ne $ServerName -and $_.Antecedent.ToString().Split('"')[1] -ne "Window Manager" -and $_.Antecedent.ToString().Split('"')[3] -notmatch $ServerName } | ForEach-Object{"{0}\{1}" -f $_.Antecedent.ToString().Split('"')[1],$_.Antecedent.ToString().Split('"')[3]}
 				$lousers = $lousers.where{$_ -notmatch $regexU}
-				$lousers.foreach({if (Is-Admin $_) {$_.psobject.properties.Add([psnoteproperty]::new("Is Local Admin",$true)); $_.psobject.properties.Add([psnoteproperty]::new("DIAG",'WARNING')); $w += "<div>`r`nOS: Warning: `tHigh privileged account <i>$_</i></div> has active session."} else {$_.psobject.properties.Add([psnoteproperty]::new("Is Local Admin",$false))}
+				$lousers.foreach({if (Is-Admin $_) {$_.psobject.properties.Add([psnoteproperty]::new("Is Local Admin",$true)); $_.psobject.properties.Add([psnoteproperty]::new("DIAG",'WARNING')); $w += "<div>OS: Warning: `tHigh privileged account <i>$_</i></div> has active session."} else {$_.psobject.properties.Add([psnoteproperty]::new("Is Local Admin",$false))}
 				})
 			}
-		if ($lousers) {$w += "<div>`r`nOS: Warning: `t<i>Active User's sesstions detected.</i></div>"}
-		$lousers.foreach({ if ((Get-Date - Get-Date($_."LOGON TIME")).TotalMinutes -gt 1440) { $w += "<div>`r`nOS: Warning: `t<i>The user $($_.USERNAME) has old session.</i></div>"; $_.DIAG = 'WARNING'} })
+		if ($lousers) {$w += "<div>OS: Warning: `t<i>Active User's sesstions detected.</i></div>`r`n"}
+		$lousers.foreach({ if ((Get-Date - Get-Date($_."LOGON TIME")).TotalMinutes -gt 1440) { $w += "<div>OS: Warning: `t<i>The user $($_.USERNAME) has old session.</i></div>`r`n"; $_.DIAG = 'WARNING'} })
 		[pscustomobject]@{'Warnings'=$w; 'report'=$lousers}
 }
 $rUSR = { #Get Local Users anomalies : run locally
@@ -745,15 +745,15 @@ $rUSR = { #Get Local Users anomalies : run locally
 			$groups = $_.Groups() | Foreach-Object {$_.GetType().InvokeMember("Name", 'GetProperty', $null, $_, $null)} 
 			$AccountDisabled = $false; if (($_.UserFlags[0] -band 2) -eq 2) {$AccountDisabled = $True}
 			if ($_.Name[0] -eq 'Administrator') {
-				$w += "<div>`r`nOS: Warning: `t<i>User Administrator was found.</i></div>"
+				$w += "<div>OS: Warning: `t<i>User Administrator was found.</i></div>`r`n"
 				$adminSID = (New-Object System.Security.Principal.NTAccount($_.Name[0])).Translate([System.Security.Principal.SecurityIdentifier]).value
-				if (($adminSID -match '-500$') -and (!$AccountDisabled)) {$w += "<div>`r`nOS: <b>Error:</b> `t<i>The local Admin account name is ADMINISTRATOR and it is NOT DISABLED. This Account must be renamed or disabled.</i></div>"; $DIAG.Add('UserName', 'e')}
-				elseif (($adminSID -match '-500$') -and ($_.Name[0] -notmatch 'admin')) {$w += "<div>`r`nOS: Warning: `t<i>Abnormal Local Admin account found: $($_.Name[0]).</i></div>"; $DIAG.Add('UserName', 'w')}
+				if (($adminSID -match '-500$') -and (!$AccountDisabled)) {$w += "<div>OS: <b>Error:</b> `t<i>The local Admin account name is ADMINISTRATOR and it is NOT DISABLED. This Account must be renamed or disabled.</i></div>`r`n"; $DIAG.Add('UserName', 'e')}
+				elseif (($adminSID -match '-500$') -and ($_.Name[0] -notmatch 'admin')) {$w += "<div>OS: Warning: `t<i>Abnormal Local Admin account found: $($_.Name[0]).</i></div>`r`n"; $DIAG.Add('UserName', 'w')}
 				elseif ($adminSID -match '-500$') {$LocalAdminCount +=1}
     		[void]$r.Add($($_ | Select-Object @{n='DIAG';e={$DIAG}}, @{n='Computername';e={$ServerName}},@{n='Account Active';e={-not $AccountDisabled}},@{n='UserName';e={$_.Name[0]}},@{n='Description';e={$_.Description[0]}},@{n='Last Login';e={If ($_.LastLogin[0] -is [DateTime]) {$_.LastLogin[0]} Else { 'Never logged on' }}},@{n='PasswordAge';e={[Math]::Round($_.PasswordAge[0] / 86400)}},@{n='Groups';e={$groups -join '::'}}))
 			}
 		}
-	if ($LocalAdminCount -gt 2) {$w += "<div>`r`nOS: Warning: `t<i>Too much high priviledged account found.</i></div>"} 
+	if ($LocalAdminCount -gt 2) {$w += "<div>OS: Warning: `t<i>Too much high priviledged account found.</i></div>`r`n"} 
 	[pscustomobject]@{'Warnings'=$w; 'report'=$r}
 }
 $CRT = { #Certificates Audit : run remotely
@@ -761,8 +761,8 @@ $CRT = { #Certificates Audit : run remotely
 	$w = @();[Collections.ArrayList]$r=@();$DIAG=@{}
 		Get-ChildItem -Recurse Cert:\LocalMachine\My |Where-Object {$_.HasPrivateKey -eq $true} | ForEach-Object {
 		$crt = $_ | Select-Object -Property @{ n = 'DIAG'; e= { $DIAG } }, @{ n = 'IsTrusted'; e = { $_.verify() } } , @{ n = 'PrivateKeyExportable'; e = { $_.PrivateKey.CspKeyContainerInfo.Exportable } }, Thumbprint, @{ n = 'SubjectName'; e = { $_.SubjectName.Name } }, @{ n = 'DnsNameList'; e = { $($_.DnsNameList -join ',:: ') } }, Issuer, @{ n = 'EnhancedKeyUsageList'; e = { $(($_.EnhancedKeyUsageList -join ',:: ') -replace " \(((\d+).)+(\d+)\)") } }, NotBefore, NotAfter
-		if (([datetime]$crt.NotAfter).Ticks -lt (Get-Date).Ticks) { $w += "<div>`r`nCER: <b>Error:</b> `tExpired certificate: <i>$($crt.SubjectName).</i></div>"; $crt.DIAG.Add('NotAfter', 'e') }
-			elseif (([datetime]$crt.NotBefore).Ticks -gt (Get-Date).Ticks) { $w += "<div>`r`nCER: <b>Error:</b> `tPending certificate: <i>$($crt.SubjectName).</i></div>"; $crt.DIAG.Add('NotBefore', 'e') }
+		if (([datetime]$crt.NotAfter).Ticks -lt (Get-Date).Ticks) { $w += "<div>CER: <b>Error:</b> `tExpired certificate: <i>$($crt.SubjectName).</i></div>`r`n"; $crt.DIAG.Add('NotAfter', 'e') }
+			elseif (([datetime]$crt.NotBefore).Ticks -gt (Get-Date).Ticks) { $w += "<div>CER: <b>Error:</b> `tPending certificate: <i>$($crt.SubjectName).</i></div>`r`n"; $crt.DIAG.Add('NotBefore', 'e') }
 			else { $crt.DIAG = @{ } }
 			if ($crt.DIAG.Count -gt 0) {[void]$r.Add($crt)}
 	}
@@ -779,27 +779,27 @@ $SHA = { #Get Shares report - run Remotely !! Method invocation failed because [
 		$DIAG = @{ }
 		$smbsa = Get-SmbShareAccess -Name $smbshare.name | Select-Object @{ n = 'DIAG'; e = { $DIAG } }, @{ n = 'Path'; e = { $smbshare.path } }, @{ n = 'Description'; e = { $smbshare.Description } }, Name, AccountName, AccessRight, AccessControlType | ForEach-Object {
 			$_.DIAG = @{ };
-			if (($_.AccountName -eq 'Everyone') -and ($_.AccessRight -eq 'Full') -and ($_.AccessControlType -eq 'Allow')) {$w +="<div>`r`nSHA: <b>Error:</b> `t<i>Share $($smbshare.name) has Everyone/FullControll access.</i></div>"; $_.DIAG.Add('AccountName', 'w')}
-			if (($_.AccountName -eq 'ANONYMOUS LOGON') -and ($_.AccessRight -eq 'Full') -and ($_.AccessControlType -eq 'Allow')) {$w +="<div>`r`nSHA: <b>Error:</b> `t<i>Share $($smbshare.name) has ANONYMOUS LOGON/FullControll access.</i></div>"; $_.DIAG.Add('AccountName', 'e')}
-			if (($_.Path -match "^[a-zA-Z]:\\$") -and ($_.Name -notlike '*$')) {$w +="<div>`r`nSHA: Warning: `t<i>The ROOT folder of $($smbshare.Path) is shared.</i></div>"; $_.DIAG.Add('Path', 'w')}
-			if (($_.Path -notmatch '^[a-zA-Z]:\\(?:[^\\/:*?"<>|\r\n]+\\?)*$') -and (![string]::IsNullOrEmpty($_.Path))) {$w +="<div>`r`nSHA: Warning: `t<i>Non common path: $($smbshare.Path) is shared.</i></div>"; $_.DIAG.Add('Path', 'w')}
+			if (($_.AccountName -eq 'Everyone') -and ($_.AccessRight -eq 'Full') -and ($_.AccessControlType -eq 'Allow')) {$w +="<div>SHA: <b>Error:</b> `t<i>Share $($smbshare.name) has Everyone/FullControll access.</i></div>`r`n"; $_.DIAG.Add('AccountName', 'w')}
+			if (($_.AccountName -eq 'ANONYMOUS LOGON') -and ($_.AccessRight -eq 'Full') -and ($_.AccessControlType -eq 'Allow')) {$w +="<div>SHA: <b>Error:</b> `t<i>Share $($smbshare.name) has ANONYMOUS LOGON/FullControll access.</i></div>`r`n"; $_.DIAG.Add('AccountName', 'e')}
+			if (($_.Path -match "^[a-zA-Z]:\\$") -and ($_.Name -notlike '*$')) {$w +="<div>SHA: Warning: `t<i>The ROOT folder of $($smbshare.Path) is shared.</i></div>`r`n"; $_.DIAG.Add('Path', 'w')}
+			if (($_.Path -notmatch '^[a-zA-Z]:\\(?:[^\\/:*?"<>|\r\n]+\\?)*$') -and (![string]::IsNullOrEmpty($_.Path))) {$w +="<div>SHA: Warning: `t<i>Non common path: $($smbshare.Path) is shared.</i></div>`r`n"; $_.DIAG.Add('Path', 'w')}
 	    	if ($_.DIAG.count -gt 0) {[void]$r.add($_)}
 			}
     }
-    if ((Get-SmbServerConfiguration).EnableSMB1Protocol) {$w +="<div>`r`nSHA: Warning: `t<i>SMB V1 protocol Enabled</i></div>"}
+    if ((Get-SmbServerConfiguration).EnableSMB1Protocol) {$w +="<div>SHA: Warning: `t<i>SMB V1 protocol Enabled</i></div>`r`n"}
 [pscustomobject]@{'Warnings'=$w; 'report'=$r}
 }
 $rWDf = { #Get WindowsDefender AV config : run remotely
 	param ($ServerName)
 	$w = @();[Collections.ArrayList]$r=@();$DIAG=@{};
 		$WAVStatus = Get-MpComputerStatus | Select-Object -Property AMRunningMode, AMServiceEnabled, ComputerState, DefenderSignaturesOutOfDate, IsTamperProtected, RealTimeProtectionEnabled
-	if (!$WAVStatus) { $w += "<div>`r`nWAV: Warning: `t<i>Unable to get Windows Defender configuration.</i></div>"; $DIAG.Add('WAVStatus', 'e') }
-	elseif ($WAVStatus.AMRunningMode -ne 'Normal') { $w += "<div>`r`nWAV: <b>Error:</b> `t<i>Windows Defender degraded.</i></div>"; $WAVStatus.psobject.properties.Add([psnoteproperty]::new('DIAG', @{ 'AMRunningMode'='w' })) }
-	elseif (!$WAVStatus.AMServiceEnabled) { $w += "<div>`r`nWAV: <b>Error:</b> `t<i>Windows Defender service is not enabled.</i></div>"; $WAVStatus.psobject.properties.Add([psnoteproperty]::new('DIAG', @{ 'AMServiceEnabled'='e' })) }
-	elseif ($WAVStatus.DefenderSignaturesOutOfDate) { $w += "<div>`r`nWAV: Warning: `t<i>Windows Defender signatures is outdated.</i></div>"; $WAVStatus.psobject.properties.Add([psnoteproperty]::new('DIAG', @{ 'DefenderSignaturesOutOfDate'='w' }))}
+	if (!$WAVStatus) { $w += "<div>WAV: Warning: `t<i>Unable to get Windows Defender configuration.</i></div>`r`n"; $DIAG.Add('WAVStatus', 'e') }
+	elseif ($WAVStatus.AMRunningMode -ne 'Normal') { $w += "<div>WAV: <b>Error:</b> `t<i>Windows Defender degraded.</i></div>`r`n"; $WAVStatus.psobject.properties.Add([psnoteproperty]::new('DIAG', @{ 'AMRunningMode'='w' })) }
+	elseif (!$WAVStatus.AMServiceEnabled) { $w += "<div>WAV: <b>Error:</b> `t<i>Windows Defender service is not enabled.</i></div>`r`n"; $WAVStatus.psobject.properties.Add([psnoteproperty]::new('DIAG', @{ 'AMServiceEnabled'='e' })) }
+	elseif ($WAVStatus.DefenderSignaturesOutOfDate) { $w += "<div>WAV: Warning: `t<i>Windows Defender signatures is outdated.</i></div>`r`n"; $WAVStatus.psobject.properties.Add([psnoteproperty]::new('DIAG', @{ 'DefenderSignaturesOutOfDate'='w' }))}
 		$WAVExclusions = Get-MpPreference | Select-Object -Property Exclusion*
 		foreach ($Property in $WAVExclusions.PSObject.Properties) {
-			$Property.Value.foreach({if ($_ -match '^[a-zA-Z]+:\\$') {$w += "<div>`r`nWAV: Warning: `t<i>AV exclusion contains some root folder(s).</i></div>"; $WAVStatus.psobject.properties.Add([psnoteproperty]::new('DIAG',@{ $Property.Value = 'w' }))}})
+			$Property.Value.foreach({if ($_ -match '^[a-zA-Z]+:\\$') {$w += "<div>WAV: Warning: `t<i>AV exclusion contains some root folder(s).</i></div>`r`n"; $WAVStatus.psobject.properties.Add([psnoteproperty]::new('DIAG',@{ $Property.Value = 'w' }))}})
 			$Property.Value = ($Property.Value) -join "`n<br>"
 			$WAVStatus.psobject.properties.Add([psnoteproperty]::new($Property.Name,$Property.Value))
 		}
@@ -810,7 +810,7 @@ $rFWC = { #Get WFW status : run remotely
 	param ($ServerName)
 	$w = @();[Collections.ArrayList]$r=@();$DIAG=@{}
 		Get-NetFirewallProfile | Select-Object -Property Name,Enabled,DefaultInboundAction,DefaultOutboundAction,AllowInboundRules,Log* | foreach-object {
-		if (!$_.Enabled) {$w += "<div>`r`nWFW: <b>Error:</b> `t<i>The firewall profile $($_.Name) is disabled.</i></div>"; $_.psobject.properties.Add([psnoteproperty]::new('DIAG', @{ 'Enabled' = 'e' }))}
+		if (!$_.Enabled) {$w += "<div>WFW: <b>Error:</b> `t<i>The firewall profile $($_.Name) is disabled.</i></div>`r`n"; $_.psobject.properties.Add([psnoteproperty]::new('DIAG', @{ 'Enabled' = 'e' }))}
 		if ($_.DIAG.Count -gt 0) {[void]$r.Add($_)} 
 		}
 	[pscustomobject]@{'Warnings'=$w; 'report'=$r}
@@ -821,7 +821,7 @@ $rFWP = { #Analyze Windows Firewall Rules : run remotely
 		Get-NetFirewallPortFilter | ForEach-Object {
 			$fwRule = $_ | Get-NetFirewallRule; $fwapp = ($fwRule | Get-NetFirewallApplicationFilter).Program
 			if ($fwRule.Action -eq 'Allow' -and  $fwRule.Enabled -eq $true -and $fwRule.Direction -eq 'Inbound' -and $_.LocalPort -eq 'Any' -and $_.RemotePort -eq 'Any' -and $fwapp -eq 'Any') {
-			$w += "<div>`r`nWFW: Warning: `t<i>Any-Any firewall rule detected: $($fwRule.DisplayName) ($($fwRule.Profile)).</i></div>"; $fwRule.psobject.properties.Add([psnoteproperty]::new('DIAG', @{ 'DisplayName' = 'e' }))
+			$w += "<div>WFW: Warning: `t<i>Any-Any firewall rule detected: $($fwRule.DisplayName) ($($fwRule.Profile)).</i></div>`r`n"; $fwRule.psobject.properties.Add([psnoteproperty]::new('DIAG', @{ 'DisplayName' = 'e' }))
 			$lport = $_.LocalPort; [void]$r.Add(($fwRule | Select-Object -Property DIAG,DisplayGroup,DisplayName,Profile,direction,@{n='LocalPort';e={$lport}} | Sort-Object -property LocalPort))
 			}
 		}
@@ -842,15 +842,15 @@ $rEVT = { #Get Event Log Errors count - run locally
 		$SYSEVTLogAge = [math]::Ceiling(((Get-Date) - ([DateTime]((Get-WinEvent -ComputerName $ServerName -LogName System -MaxEvents 1 -Oldest).TimeCreated))).TotalDays)
 		$SECEVTLogAge = [math]::Ceiling(((Get-Date) - ([DateTime]((Get-WinEvent -ComputerName $ServerName -LogName Security -MaxEvents 1 -Oldest).TimeCreated))).TotalDays)
 
-		if ($AppErrEvCount -gt 48) {$w += "<div>`r`nEVT APP: Warning: `t<i>Too mach Errors in App Event Log in last 24h.</i></div>"; $DIAG.Add('App Errors', 'e')}		
-		if ($AppWarEvCount -gt 72) {$w += "<div>`r`nEVT APP: Warning: `t<i>Too mach Warning in App Event Log in last 24h.</i></div>"; $DIAG.Add('App Warnings', 'w')}
-		if ($SysErrEvCount -gt 24) {$w += "<div>`r`nEVT SYS: Warning: `t<i>Too mach Errors in SYSTEM Event Log in last 24h.</i></div>"; $DIAG.Add('System Erros', 'e')}
-		if ($SysWarEvCount -gt 72) {$w += "<div>`r`nEVT SYS: Warning: `t<i>Too mach Warnings in SYSTEM Event Log in last 24h.</i></div>"; $DIAG.Add('System Warnings', 'w')}
-		if ($SecErrEvCount -gt 24) {$w += "<div>`r`nEVT SEC: Warning: `t<i>Too mach Errors in SECURITY Event Log in last 24h.</i></div>"; $DIAG.Add('Security Errors', 'e')}
-		if ($SecWarEvCount -gt 72) {$w += "<div>`r`nEVT SEC: Warning: `t<i>Too mach Warnings in SECURITY Event Log in last 24h.</i></div>"; $DIAG.Add('Security Warnings', 'w')}
-		if ($SYSEVTLogAge -lt 7) {$w += "<div>`r`nEVT SYS: Warning: `t<i>The SYSTEM log age is $($SYSEVTLogAge) days.</i></div>"; $DIAG.Add('System Age', 'w')}
-		if ($SECEVTLogAge -lt 7) {$w += "<div>`r`nEVT SYS: Warning: `t<i>The SECURITY log age is $($SECEVTLogAge) days.</i></div>"; $DIAG.Add('Security Age', 'w')}
-		if ($APPEVTLogAge -lt 7) {$w += "<div>`r`nEVT SYS: Warning: `t<i>The Application log age is $($APPEVTLogAge) days.</i></div>"; $DIAG.Add('App Age', 'w')}
+		if ($AppErrEvCount -gt 48) {$w += "<div>EVT APP: Warning: `t<i>Too mach Errors in App Event Log in last 24h.</i></div>`r`n"; $DIAG.Add('App Errors', 'e')}		
+		if ($AppWarEvCount -gt 72) {$w += "<div>EVT APP: Warning: `t<i>Too mach Warning in App Event Log in last 24h.</i></div>`r`n"; $DIAG.Add('App Warnings', 'w')}
+		if ($SysErrEvCount -gt 24) {$w += "<div>EVT SYS: Warning: `t<i>Too mach Errors in SYSTEM Event Log in last 24h.</i></div>`r`n"; $DIAG.Add('System Erros', 'e')}
+		if ($SysWarEvCount -gt 72) {$w += "<div>EVT SYS: Warning: `t<i>Too mach Warnings in SYSTEM Event Log in last 24h.</i></div>`r`n"; $DIAG.Add('System Warnings', 'w')}
+		if ($SecErrEvCount -gt 24) {$w += "<div>EVT SEC: Warning: `t<i>Too mach Errors in SECURITY Event Log in last 24h.</i></div>`r`n"; $DIAG.Add('Security Errors', 'e')}
+		if ($SecWarEvCount -gt 72) {$w += "<div>EVT SEC: Warning: `t<i>Too mach Warnings in SECURITY Event Log in last 24h.</i></div>`r`n"; $DIAG.Add('Security Warnings', 'w')}
+		if ($SYSEVTLogAge -lt 7) {$w += "<div>EVT SYS: Warning: `t<i>The SYSTEM log age is $($SYSEVTLogAge) days.</i></div>`r`n"; $DIAG.Add('System Age', 'w')}
+		if ($SECEVTLogAge -lt 7) {$w += "<div>EVT SYS: Warning: `t<i>The SECURITY log age is $($SECEVTLogAge) days.</i></div>`r`n"; $DIAG.Add('Security Age', 'w')}
+		if ($APPEVTLogAge -lt 7) {$w += "<div>EVT SYS: Warning: `t<i>The Application log age is $($APPEVTLogAge) days.</i></div>`r`n"; $DIAG.Add('App Age', 'w')}
 		[void]$r.Add([pscustomobject]@{'DIAG'=$DIAG; 'System Erros'=$SysErrEvCount; 'System Warnings'=$SysWarEvCount; 'System Age'=$SYSEVTLogAge; 'Security Errors'=$SecErrEvCount; 'Security Warnings'=$SecWarEvCount; 'Security Age'=$SECEVTLogAge; 'App Errors'=$AppErrEvCount; 'App Warnings'=$AppWarEvCount; 'App Age'=$APPEVTLogAge;}) 
 	[pscustomobject]@{'Warnings'=$w; 'report'=$r}
 }
@@ -920,9 +920,9 @@ if ($RunTest -contains 'WAV') {
 	elseif ($Null -eq $AVinfo.results)
 	{
 		# No Ativirus
-		[void]$Problems.Add("<div>`r`nWAV: Warning: `t<i>Probably no Antivirus software installed.</i></div>")
+		[void]$Problems.Add("<div>WAV: Warning: `t<i>Probably no Antivirus software installed.</i></div>`r`n")
 	}
-	else { [void]$Problems.Add("<div>`r`nWAV: Warning: `t<i>The 3d party Antivirus software installed. Only basic info was got.</i></div>") } # 3d party antivirus detected. Need custom detection routine 
+	else { [void]$Problems.Add("<div>WAV: Warning: `t<i>The 3d party Antivirus software installed. Only basic info was got.</i></div>`r`n") } # 3d party antivirus detected. Need custom detection routine 
 }
 if ($RunTest -contains 'SVC') {
 	Write-Status -Status Information -Message "Starting job Windows Services State for $($ServerName) at $(Get-Date)"
@@ -970,7 +970,7 @@ while ($null -ne (Get-Job)) {
 	foreach ($jdone in $jobsdone)
 	{
 		$jout = Receive-Job -Id $jdone.Id
-		if (!$jout) {[void]$Problems.Add("<div>`r`nJOB: Warning: `t<i>The JOB $($jdone.Name) on the host $ServerName return no output.</i></div>")}
+		if (!$jout) {[void]$Problems.Add("<div>JOB: Warning: `t<i>The JOB $($jdone.Name) on the host $ServerName return no output.</i></div>`r`n")}
 		if ($null -ne $jout) {
 			if (!([string]::IsNullOrEmpty($jout.Warnings))) {$jout.Warnings = $jout.Warnings | Sort-Object -Unique; $jout.Warnings += "<hr />"}
 			if ($jdone.Name -like "EVT") {$SysEvents = $jout}
@@ -996,9 +996,9 @@ while ($null -ne (Get-Job)) {
 		Remove-Job -Id $jdone.Id
 	}
 	if (($Watch.Elapsed.Minutes - $runningmins) -gt 2) {$runningmins = $Watch.Elapsed.Minutes; Write-Status -Status Warning -Message "Job(s): $(((Get-Job | Where-Object { $_.State -ne 'Completed' }).Name) -join '; ') are running $($Watch.Elapsed.Minutes) minutes so far.. Waiting for results..."}
-	if ($Watch.Elapsed.Minutes -gt $JobRunningLimit) {[void]$Problems.Add("<div>`r`nRUNTIME: Warning: `t<i>The JOBs $(((Get-Job | Where-Object { $_.State -ne 'Completed' }).Name) -join '; ') on the host $ServerName are running too long. These jobs where skipped.</i></div>"); $Watch.Stop(); break}
+	if ($Watch.Elapsed.Minutes -gt $JobRunningLimit) {[void]$Problems.Add("<div>RUNTIME: Warning: `t<i>The JOBs $(((Get-Job | Where-Object { $_.State -ne 'Completed' }).Name) -join '; ') on the host $ServerName are running too long. These jobs where skipped.</i></div>`r`n"); $Watch.Stop(); break}
 	if (Get-Job | Where-Object { $_.State -eq "Failed" }) {
-		(Get-Job | Where-Object { $_.State -eq "Failed" }).foreach({Write-Status -Status Error -Message ("Job $_.Name was failed with error: " + ($_.ChildJobs[0].JobStateInfo.Reason.Message)); [void]$Problems.Add("<div>`r`nRUNTIME: Warning: `t<i>The JOB $($_.Name) on the host $ServerName was failed with error $($_.ChildJobs[0].JobStateInfo.Reason.Message) . This job was skipped.</i></div>")})
+		(Get-Job | Where-Object { $_.State -eq "Failed" }).foreach({Write-Status -Status Error -Message ("Job $_.Name was failed with error: " + ($_.ChildJobs[0].JobStateInfo.Reason.Message)); [void]$Problems.Add("<div>RUNTIME: Warning: `t<i>The JOB $($_.Name) on the host $ServerName was failed with error $($_.ChildJobs[0].JobStateInfo.Reason.Message) . This job was skipped.</i></div>`r`n")})
 		Write-Status -Status Error -Message "Job(s): $(((Get-Job | Where-Object { $_.State -ne 'Failed' }).Name) -join '; ') are failed. Remove these jobs. "
 		Get-Job | Where-Object { $_.State -eq "Failed" } | Remove-Job -Force
 		}
