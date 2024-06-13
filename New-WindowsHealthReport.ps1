@@ -421,7 +421,7 @@ if ($install) {
 # Test Connection and warn if no responce
 if (!(test-connection $ServerName -count 1 -quiet -ErrorAction 0)) {Write-Warning "No responce from the host $ServerName."; [void]$Problems.Add("<div>RUNTIME: Warning: `t<i>No ping responce from the host: $ServerName.</i></div>`r`n")}
 $ServerNameIPResolved =  ((Test-Connection $ServerName -count 1 | Select-Object @{Name=$ServerName;Expression={$_.Address}},Ipv4Address).IPV4Address).IPAddressToString
-if (($ServerNameIPResolved -NOTMATCH "^192\.168\.") -AND ($ServerNameIPResolved -NOTMATCH "^172\.(1[6-9]|2[0-9]|3[0-1])\.") -AND ($ServerNameIPResolved -NOTMATCH "^10\.") -AND ($ServerNameIPResolved -NOTMATCH "^127\.0\.0")) {
+if (($ServerNameIPResolved -NOTMATCH "^169\.254\.") -AND ($ServerNameIPResolved -NOTMATCH "^192\.168\.") -AND ($ServerNameIPResolved -NOTMATCH "^172\.(1[6-9]|2[0-9]|3[0-1])\.") -AND ($ServerNameIPResolved -NOTMATCH "^10\.") -AND ($ServerNameIPResolved -NOTMATCH "^127\.0\.0")) {
 	Write-Warning "The IP Address for host $ServerName is resolved to Public v4 IP [$ServerNameIPResolved]. Report could may be proceeded incorrectly."; [void]$Problems.Add("<div>RUNTIME: Warning: `t<i>The IP Address for host $ServerName is resolved to Public v4 IP [$ServerNameIPResolved]. Report could not be proceeded correctly.</i></div>`r`n")
 	#try to obtain Host local IP 
 	$HostIpv4Addresses = Get-WmiObject Win32_NetworkAdapterConfiguration -ComputerName $ServerName -filter 'IPEnabled="True"' | Select-Object -ExpandProperty IPAddress | Where-Object{$_ -notmatch ':'}
@@ -476,15 +476,16 @@ $rWHW = { #HW info : run remotely
 }
 $rCPU = { #CPU info : run local or remotely
 	param ($ServerName)
-	$w = @();[Collections.ArrayList]$r=@();$DIAG=@{}
+	$w = @();[Collections.ArrayList]$r=@();$DIAG=@{}; $CPUCores = 0;
 		$CPULoad = [math]::ceiling(((Get-CimInstance -ComputerName $ServerName -ClassName Win32_Processor).LoadPercentage | Measure-Object -Average).Average)
 		if (($CPULoad) -gt 90) { $w += "<div>CPU: <b>Error:</b> `t<i>CPU load is high.</i></div>`r`n"; $DIAG.Add('CPU Load', 'e') }
 		elseif (($CPULoad) -gt 70) { $w += "<div>CPU: Warning: `t<i>CPU load is ubnormal.</i></div>`r`n"; $DIAG.Add('CPU Load', 'w') }
 	 	$computerCPU = [object[]](get-wmiobject Win32_Processor -ComputerName $ServerName -Property DeviceID, Name, NumberOfCores, NumberOfLogicalProcessors, SocketDesignation, MaxClockSpeed)
 		$computerCPU.Foreach({
-			if ($_.NumberOfLogicalProcessors -le 2) { $w = "<div>CPU: Warning: `t<i>The number of CPU cores is low.</i></div>`r`n"; $DIAG.Add('Logical Processors', 'w') }
+			$CPUCores += $_.NumberOfLogicalProcessors
 			[void]$r.Add([PSCustomObject]@{'DIAG'=$DIAG; 'CPU' = $_.Name; 'Socket' = $_.SocketDesignation; 'Cores' = $_.NumberOfCores; 'Logical Processors' = $_.NumberOfLogicalProcessors; 'Freq GHz' = [math]::floor($_.MaxClockSpeed/1024) ; 'CPU Load' = $CPULoad})
 		})
+		if ($CPUCores -le 4) { $w += "<div>CPU: Warning: `t<i>The number of CPU cores is low.</i></div>`r`n"; $DIAG.Add('Logical Processors', 'w') }
 	[pscustomobject]@{'Warnings'=$w; 'report'=$r}
 }
 $rHDD = { #HDD State : run remotely
