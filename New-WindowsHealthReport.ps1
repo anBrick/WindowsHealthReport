@@ -839,9 +839,9 @@ $rEVT = { #Get Event Log Errors count - run locally
 		$AppErrEvCount = (Get-WinEvent -ErrorAction SilentlyContinue -ComputerName $ServerName -FilterHashtable @{ LogName = "Application"; Level = 2; StartTime = (Get-Date).AddHours(-24) } | Where-Object { ($_.ProviderName -like '*') }).count
 		$AppWarEvCount = (Get-WinEvent -ErrorAction SilentlyContinue -ComputerName $ServerName -FilterHashtable @{ LogName = "Application"; Level = 3; StartTime = (Get-Date).AddHours(-24) } | Where-Object { ($_.ProviderName -like '*') }).count
 		
-		$APPEVTLogAge = [math]::Ceiling(((Get-Date) - ([DateTime]((Get-WinEvent -ComputerName $ServerName -LogName Application -MaxEvents 1 -Oldest).TimeCreated))).TotalDays)
-		$SYSEVTLogAge = [math]::Ceiling(((Get-Date) - ([DateTime]((Get-WinEvent -ComputerName $ServerName -LogName System -MaxEvents 1 -Oldest).TimeCreated))).TotalDays)
-		$SECEVTLogAge = [math]::Ceiling(((Get-Date) - ([DateTime]((Get-WinEvent -ComputerName $ServerName -LogName Security -MaxEvents 1 -Oldest).TimeCreated))).TotalDays)
+		$APPEVTLogAge = [math]::Floor(((Get-Date) - ([DateTime]((Get-WinEvent -ComputerName $ServerName -LogName Application -MaxEvents 1 -Oldest).TimeCreated))).TotalDays)
+		$SYSEVTLogAge = [math]::Floor(((Get-Date) - ([DateTime]((Get-WinEvent -ComputerName $ServerName -LogName System -MaxEvents 1 -Oldest).TimeCreated))).TotalDays)
+		$SECEVTLogAge = [math]::Floor(((Get-Date) - ([DateTime]((Get-WinEvent -ComputerName $ServerName -LogName Security -MaxEvents 1 -Oldest).TimeCreated))).TotalDays)
 
 		if ($AppErrEvCount -gt 48) {$w += "<div>EVT APP: Warning: `t<i>Too mach Errors in App Event Log in last 24h.</i></div>`r`n"; $DIAG.Add('App Errors', 'e')}		
 		if ($AppWarEvCount -gt 72) {$w += "<div>EVT APP: Warning: `t<i>Too mach Warning in App Event Log in last 24h.</i></div>`r`n"; $DIAG.Add('App Warnings', 'w')}
