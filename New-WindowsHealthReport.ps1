@@ -146,31 +146,31 @@ $Header = @"
 <style>
 body{ width:100%; min-width:1024px; padding-left: 12px; padding-right: 10px; line-height: normal; font-family: Segoe UI, Verdana, sans-serif, ui-sans-serif, system-ui; font-size:14px; /*font-weight:300;*/ line-height:1.0; color:#222222; background-color:#ffffff;}
    strong{ font-weight:600;}
-   p.error { font-family: Segoe UI, sans-serif, ui-sans-serif, system-ui; font-size:11.5px; font-weight: normal; color:white; margin-bottom: 2px; margin-top: 0em; margin-left:2%; margin-right:30%; line-height:1.3; background-color:#ff715a;}
-	p.warning { font-family: Segoe UI, sans-serif, ui-sans-serif, system-ui; font-size:11.5px; font-weight: normal; color:white; margin-bottom: 2px; margin-top: 0em; margin-left:2%; margin-right:30%; line-height:1.4; background-color:#ff9300;}
-	p.info { font-family: Segoe UI, sans-serif, ui-sans-serif, system-ui; font-size:11.5px; font-weight: normal; color:white; margin-bottom: 2px; margin-top: 0em; margin-left:2%; margin-right:30%; line-height:1.4; background-color:#6c419d;}
+	p.warning { font-family: Segoe UI, sans-serif, ui-sans-serif, system-ui; font-size:11.5px; font-weight: normal; color:#c79800; margin-bottom: 2px; margin-top: 0em; margin-left:4px; margin-right:4px; line-height:1.4; background-color:white;}
+	p.info { font-family: Segoe UI, sans-serif, ui-sans-serif, system-ui; font-size:11.5px; font-weight: normal; color:#032282; margin-bottom: 2px; margin-top: 0em; margin-left:4px; margin-right:4px; line-height:1.4; background-color:white;}
+	p.error { font-family: Segoe UI, sans-serif, ui-sans-serif, system-ui; font-size:11.5px; font-weight: normal; color:#7b0000; margin-bottom: 2px; margin-top: 0em; margin-left:4px; margin-right:4px; line-height:1.4; background-color:white;}
 	h1{ font-size:17px; font-weight:bold;}
    h2{ font-size:14px; font-weight:normal;}
    h3{ font-size:17px; font-weight:normal; background-color:#66ccee; margin-top:3px; margin-bottom:1px; margin-left:4px; text-align:left;}
-   table { width:98%; border: 0px solid #6E8BB6; background:#f3f3f3; margin-top:0px;}
-	table.scope { width:98%; border-collapse: collapse; border: 0px solid #ffffff; padding:6px; background-color:#66ccee; margin-top:8px; text-align:left;}
+   table {border: 0px solid #6E8BB6; background:#f3f3f3; margin-top:0px;}
+	table.scope {border-collapse: collapse; border: 0px solid #ffffff; padding:6px; background-color:#66ccee; margin-top:8px; text-align:left;}
 	table th { padding:0px; border-collapse: collapse; border: 0px solid #f3f3f3; text-align:left; vertical-align:middle; background-color:#317399; color:white; font-size:14px; font-weight: normal;}
-   table td.u { padding:1px; background-color:white; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: monospace, monospace; color:grey; margin-left:4px;}
-   table td.n { padding:1px; background-color:#8AFC95; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: monospace, monospace; color:black; margin-left:4px;}
-   table td.w { padding:1px; background-color:#FEEC6A; border-collapse: collapse; border: 1px solid #FF0000; text-align:left; vertical-align:middle; font-size:12px; font-family: monospace, monospace; color:red; margin-left:4px;}
-   table td.e { padding:1px; background-color:#8F4040; border-collapse: collapse; border: 0px solid #FEEC6A; text-align:left; vertical-align:middle; font-size:12px; font-family: monospace, monospace; color:#f3f587; margin-left:4px;}
-	table tr.u { padding:1px; background-color:white; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: monospace, monospace; color:grey; margin-left:4px;}
-   table tr.n { padding:1px; background-color:#8AFC95; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: monospace, monospace; color:black; margin-left:4px;}
-   table tr.w { padding:1px; background-color:#FCEC8A; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: monospace, monospace; color:red; margin-left:4px;}
-   table tr.e { padding:1px; background-color:#530A0A; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: monospace, monospace; color:#f3f587; margin-left:4px;}
-   table tr { padding:1px; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: monospace, monospace; margin-left:4px;}
+   table td.u { padding:1px; background-color:white; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:grey; margin-left:4px; margin-right:4px;}
+   table td.n { padding:1px; background-color:#8AFC95; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:black; margin-left:4px; margin-right:4px;}
+   table td.w { padding:1px; background-color:#FEEC6A; border-collapse: collapse; border: 1px solid #FF0000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:red; margin-left:4px; margin-right:4px;}
+   table td.e { padding:1px; background-color:#8F4040; border-collapse: collapse; border: 0px solid #FEEC6A; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:#f3f587; margin-left:4px; margin-right:4px;}
+	table tr.u { padding:1px; background-color:white; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:grey; margin-left:4px; margin-right:4px;}
+   table tr.n { padding:1px; background-color:#8AFC95; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:black; margin-left:4px; margin-right:4px;}
+   table tr.w { padding:1px; background-color:#FCEC8A; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:red; margin-left:4px; margin-right:4px;}
+   table tr.e { padding:1px; background-color:#530A0A; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:#f3f587; margin-left:4px; margin-right:4px;}
+   table tr { padding:1px; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; margin-left:4px; margin-right:4px;}
 </style>
 </head><body>
 "@
 $Footer = @"
     <div></div><!--End ReportBody--><div>
     <br><center><i>Source script: $($MyInvocation.MyCommand.Path)<br>Report file was saved to $($ReportFilePath)</i></p></center>
-    <br><center><i>$(Get-Date -Format "dd/MM/yyyy HH:mm:ss")</i><p style="" font-size:8px;color:#7d9797"">Script Version: 2024.07 | By: Vladislav Jandjuk | Feedback: jandjuk@arion.cz</p></center>
+    <br><center><i>$(Get-Date -Format "dd/MM/yyyy HH:mm:ss")</i><p style="" font-size:8px;color:#7d9797"">Script Version: 2024.08 | By: Vladislav Jandjuk | Feedback: jandjuk@arion.cz</p></center>
     <br></div></body></html>
 "@
 #Other vasr and constants - change it if you know what you do
@@ -748,13 +748,13 @@ $rUSR = { #Get Local Users anomalies : run locally
 			if ($_.Name[0] -eq 'Administrator') {
 				$w += "<div>OS: Warning: `t<i>User Administrator was found.</i></div>`r`n"
 				$adminSID = (New-Object System.Security.Principal.NTAccount($_.Name[0])).Translate([System.Security.Principal.SecurityIdentifier]).value
-				if (($adminSID -match '-500$') -and (!$AccountDisabled)) {$w += "<div>OS: <b>Error:</b> `t<i>The local Admin account name is ADMINISTRATOR and it is NOT DISABLED. This Account must be renamed or disabled.</i></div>`r`n"; $DIAG.Add('UserName', 'e')}
-				elseif (($adminSID -match '-500$') -and ($_.Name[0] -notmatch 'admin')) {$w += "<div>OS: Warning: `t<i>Abnormal Local Admin account found: $($_.Name[0]).</i></div>`r`n"; $DIAG.Add('UserName', 'w')}
+				if (($adminSID -match '-500$') -and (!$AccountDisabled)) {$w += "<div>USR: <b>Error:</b> `t<i>The local Admin account name is ADMINISTRATOR and it is NOT DISABLED. This Account must be renamed or disabled.</i></div>`r`n"; $DIAG.Add('UserName', 'e')}
+				elseif (($adminSID -match '-500$') -and ($_.Name[0] -notmatch 'admin')) {$w += "<div>USR: Warning: `t<i>Abnormal Local Admin account found: $($_.Name[0]).</i></div>`r`n"; $DIAG.Add('UserName', 'w')}
 				elseif ($adminSID -match '-500$') {$LocalAdminCount +=1}
     		[void]$r.Add($($_ | Select-Object @{n='DIAG';e={$DIAG}}, @{n='Computername';e={$ServerName}},@{n='Account Active';e={-not $AccountDisabled}},@{n='UserName';e={$_.Name[0]}},@{n='Description';e={$_.Description[0]}},@{n='Last Login';e={If ($_.LastLogin[0] -is [DateTime]) {$_.LastLogin[0]} Else { 'Never logged on' }}},@{n='PasswordAge';e={[Math]::Round($_.PasswordAge[0] / 86400)}},@{n='Groups';e={$groups -join '::'}}))
 			}
 		}
-	if ($LocalAdminCount -gt 2) {$w += "<div>OS: Warning: `t<i>Too much high priviledged account found.</i></div>`r`n"} 
+	if ($LocalAdminCount -gt 2) {$w += "<div>USR: Warning: `t<i>Too much high priviledged account found.</i></div>`r`n"} 
 	[pscustomobject]@{'Warnings'=$w; 'report'=$r}
 }
 $CRT = { #Certificates Audit : run remotely
@@ -858,9 +858,18 @@ $rEVT = { #Get Event Log Errors count - run locally
 $rEVTv = { #Get Event Log Errors verbosely - run locally
 	param ($ServerName)
 	$w = @();[Collections.ArrayList]$r=@();$DIAG=@{}
-		Get-WinEvent -ErrorAction SilentlyContinue -ComputerName $ServerName -FilterHashtable @{ LogName = "System"; Level = 2; StartTime = (Get-Date).AddHours(-24) } | Where-Object { ($_.ProviderName -like '*') }  | Sort-Object -property eventid -Unique | Sort-Object Index -Descending | foreach-object {[void]$r.Add($($_ | Select-Object -Property @{n='LOG';e={"System"}},TimeCreated,ID,ProviderName,Message,@{n='DIAG';e={$DIAG}} ))}
-		Get-WinEvent -ErrorAction SilentlyContinue -ComputerName $ServerName -FilterHashtable @{ LogName = "Security"; Level = 2; StartTime = (Get-Date).AddHours(-24) } | Where-Object { ($_.ProviderName -like '*') }  | Sort-Object -property eventid -Unique | Sort-Object Index -Descending | foreach-object {[void]$r.Add($($_ | Select-Object -Property @{n='LOG';e={"Security"}},TimeCreated,ID,ProviderName,Message,@{n='DIAG';e={$DIAG}}))}
-		Get-WinEvent -ErrorAction SilentlyContinue -ComputerName $ServerName -FilterHashtable @{ LogName = "Application"; Level = 2; StartTime = (Get-Date).AddHours(-24) } | Where-Object { ($_.ProviderName -like '*') } | Sort-Object -property eventid -Unique | Sort-Object Index -Descending | foreach-object {[void]$r.Add($($_ | Select-Object -Property @{n='LOG';e={"Application"}},TimeCreated,ID,ProviderName,Message,@{n='DIAG';e={$DIAG}}))}
+#collect syslog events
+    $erevs = Get-WinEvent -ErrorAction SilentlyContinue -ComputerName $ServerName -FilterHashtable @{ LogName = "System"; Level = 2; StartTime = (Get-Date).AddHours(-24) } | Where-Object { ($_.ProviderName -like '*') }
+    $erevsco = $erevs | Group-Object -Property Id
+    $erevs | Sort-Object -property id -Unique | foreach-object {$eid = $_.ID;[void]$r.Add($($_ | Select-Object -Property @{n='LOG';e={"System"}},TimeCreated,ID,ProviderName,Message,@{n='Count';e={($erevsco | ?{$_.Name -eq $eid}).Count}},@{n='DIAG';e={$DIAG}} ))}
+#collect seclog events
+    $erevs = Get-WinEvent -ErrorAction SilentlyContinue -ComputerName $ServerName -FilterHashtable @{ LogName = "Security"; Level = 2; StartTime = (Get-Date).AddHours(-24) } | Where-Object { ($_.ProviderName -like '*') }
+    $erevsco = $erevs | Group-Object -Property Id
+    $erevs | Sort-Object -property id -Unique | foreach-object {$eid = $_.ID;[void]$r.Add($($_ | Select-Object -Property @{n='LOG';e={"Security"}},TimeCreated,ID,ProviderName,Message,@{n='Count';e={($erevsco | ?{$_.Name -eq $eid}).Count}},@{n='DIAG';e={$DIAG}} ))}
+#collect applog events
+    $erevs = Get-WinEvent -ErrorAction SilentlyContinue -ComputerName $ServerName -FilterHashtable @{ LogName = "Application"; Level = 2; StartTime = (Get-Date).AddHours(-24) } | Where-Object { ($_.ProviderName -like '*') }
+    $erevsco = $erevs | Group-Object -Property Id
+    $erevs | Sort-Object -property id -Unique | foreach-object {$eid = $_.ID;[void]$r.Add($($_ | Select-Object -Property @{n='LOG';e={"Application"}},TimeCreated,ID,ProviderName,Message,@{n='Count';e={($erevsco | ?{$_.Name -eq $eid}).Count}},@{n='DIAG';e={$DIAG}} ))}
 	[pscustomobject]@{'Warnings'=$w; 'report'=$r}
 }
 #############################################################################
@@ -1010,8 +1019,8 @@ Write-Status -Status Information -Message "Combine results and write the report 
 	
 [void]$ReportHTMLArray.Add($($HostOSinfo | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($HostName) </font> | Operating System </H3></td></tr></table>"))
 if ($LoggedUsers.report) { [void]$ReportHTMLArray.Add($($LoggedUsers.report | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Logged On Users</H3></td></tr></table>"))}
-if ($SysEventsVer.report) { [void]$ReportHTMLArray.Add($($SysEventsVer.report | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Last 24h. Event Log Errors List</H3></td></tr></table>")) }
 if ($SysEvents.report) { [void]$ReportHTMLArray.Add($($SysEvents.report | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Last 24h. Event Log Errors & Warnings</H3></td></tr></table>")) }
+if ($SysEventsVer.report) { [void]$ReportHTMLArray.Add($($SysEventsVer.report | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Last 24h. Event Log Errors List</H3></td></tr></table>")) }
 if ($HWConfig.report) { [void]$ReportHTMLArray.Add($($HWConfig.report | Select-Object -Property * -ExcludeProperty PSComputerName, RunspaceId, PSShowComputerName | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | SYSTEM HW </H3></td></tr></table>")) }
 #REPLACE convertto-html !!!
 $AZState.Warnings.foreach({[void]$Problems.Add($_)})
@@ -1050,13 +1059,13 @@ $SysEventsVer.Warnings.foreach({[void]$Problems.Add($_)})
 #REGION:: SAVE & SEND REPORT
 $ReportHTML = $Header + "<div><table><tr><td><H1>Host <font style='color: green;font-weight: bold;'>$($computerOS.PSComputerName)</font> health report.</H1></td><td style='text-align:right;'>Executed on <i>$ENV:COMPUTERNAME</i> as <i>$ENV:USERNAME</i> at $(get-date -Format s)</td></tr></table>"
 if ($Problems) {
-	$ReportHTML += "<H2>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Problems found:</H2></div><table><tr><th>"
+	$ReportHTML += "<H2>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Problems found:</H2></div>"
 	$Problems.foreach({
 		if ($_ -match "Warning:"){$ReportHTML += $_ -replace "<div>","<div><p class='warning'>"}
 		elseif ($_ -match "Error:"){$ReportHTML += $_ -replace "<div>","<div><p class='error'>"}
 		else {$ReportHTML += $_ -replace "<div>","<div><p class='info'>"}
 	})
-	$ReportHTML += "</th></tr></table>`n"
+	$ReportHTML += "`n"
 }
 $ReportHTMLArray.foreach({$ReportHTML += $_})
 $ReportHTML += $Footer
