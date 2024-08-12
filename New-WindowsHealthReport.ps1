@@ -144,7 +144,7 @@ $Header = @"
 <!DOCTYPE html><html><head>
 <title>$ServerName Health Report</title>
 <style>
-body{ width:100%; min-width:1024px; padding-left: 12px; padding-right: 10px; line-height: normal; font-family: Segoe UI, Verdana, sans-serif, ui-sans-serif, system-ui; font-size:14px; /*font-weight:300;*/ line-height:1.0; color:#222222; background-color:#ffffff;}
+	body { width:100%; min-width:1024px; padding-left: 12px; padding-right: 10px; font-family: Segoe UI, Verdana, sans-serif, ui-sans-serif, system-ui; font-size:14px; /*font-weight:300;*/ line-height:1.0; color:#222222; background-color:#f4f5f6;}
    strong{ font-weight:600;}
 	p.warning { font-family: Segoe UI, sans-serif, ui-sans-serif, system-ui; font-size:11.5px; font-weight: normal; color:#c79800; margin-bottom: 2px; margin-top: 0em; margin-left:4px; margin-right:4px; line-height:1.4; background-color:white;}
 	p.info { font-family: Segoe UI, sans-serif, ui-sans-serif, system-ui; font-size:11.5px; font-weight: normal; color:#032282; margin-bottom: 2px; margin-top: 0em; margin-left:4px; margin-right:4px; line-height:1.4; background-color:white;}
