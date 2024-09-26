@@ -722,6 +722,7 @@ $result
 			$qry = 'SELECT * FROM Win32_Process WHERE Name="explorer.exe"'
 			$lousers.foreach({ [string]$tn=$_.Username
 			    $_.Username = Get-WmiObject -Query $qry -ComputerName $ServerName| ForEach-Object { $_.GetOwner() } | Where-Object {$_.User -match $tn } | ForEach-Object {'{0}\{1}' -f $_.Domain, $_.User}
+			    if ([string]::IsNullOrEmpty($_.Username)) {$_.Username = $tn}
 			    if (Is-Admin $tn) {$_.psobject.properties.Add([psnoteproperty]::new("Is Local Admin",$true)); $_.psobject.properties.Add([psnoteproperty]::new("DIAG",'WARNING')); $w += "<div>OS: Warning: `tHigh privileged account <i>$tn</i> has active session.</div>"} else {$_.psobject.properties.Add([psnoteproperty]::new("Is Local Admin",$false))}
 			})
 			if (!$lousers) { # if no results from QUSER try to use WMI
