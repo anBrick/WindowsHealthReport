@@ -146,9 +146,9 @@ $Header = @"
 <style>
 	body { width:100%; min-width:1024px; padding-left: 12px; padding-right: 10px; font-family: Segoe UI, Verdana, sans-serif, ui-sans-serif, system-ui; font-size:14px; /*font-weight:300;*/ line-height:1.0; color:#222222; background-color:#f4f5f6;}
    strong{ font-weight:600;}
-	p.warning { font-family: Segoe UI, sans-serif, ui-sans-serif, system-ui; font-size:11.5px; font-weight: normal; color:#c79800; margin-bottom: 2px; margin-top: 0em; margin-left:4px; margin-right:4px; line-height:1.4; background-color:white;}
-	p.info { font-family: Segoe UI, sans-serif, ui-sans-serif, system-ui; font-size:11.5px; font-weight: normal; color:#032282; margin-bottom: 2px; margin-top: 0em; margin-left:4px; margin-right:4px; line-height:1.4; background-color:white;}
-	p.error { font-family: Segoe UI, sans-serif, ui-sans-serif, system-ui; font-size:11.5px; font-weight: normal; color:#7b0000; margin-bottom: 2px; margin-top: 0em; margin-left:4px; margin-right:4px; line-height:1.4; background-color:white;}
+	p.warning { font-family: Segoe UI, sans-serif, ui-sans-serif, system-ui; font-size:12.5px; font-weight: normal; font-stretch: expanded; color:#7B6000; margin-bottom: 2px; margin-top: 0em; margin-left:4px; margin-right:4px; line-height:1.4; background-color:white;}
+	p.info { font-family: Segoe UI, sans-serif, ui-sans-serif, system-ui; font-size:12.5px; font-weight: normal; font-stretch: expanded; color:#032282; margin-bottom: 2px; margin-top: 0em; margin-left:4px; margin-right:4px; line-height:1.4; background-color:white;}
+	p.error { font-family: Segoe UI, sans-serif, ui-sans-serif, system-ui; font-size:12.5px; font-weight: normal; font-stretch: expanded; color:#7b0000; margin-bottom: 2px; margin-top: 0em; margin-left:4px; margin-right:4px; line-height:1.4; background-color:white;}
 	h1{ font-size:17px; font-weight:bold;}
    h2{ font-size:14px; font-weight:normal;}
    h3{ font-size:17px; font-weight:normal; background-color:#66ccee; margin-top:3px; margin-bottom:1px; margin-left:4px; text-align:left;}
@@ -164,6 +164,7 @@ $Header = @"
    table tr.w { padding:1px; background-color:#FCEC8A; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:red; margin-left:4px; margin-right:4px;}
    table tr.e { padding:1px; background-color:#530A0A; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:#f3f587; margin-left:4px; margin-right:4px;}
    table tr { padding:1px; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; margin-left:4px; margin-right:4px;}
+   .twoColumns { padding: 10px; -webkit-column-count: 2; -webkit-column-rule: 1px solid #6E8BB6; column-count: 2; column-gap: 10px; column-rule: 1px solid #6E8BB6;}
 </style>
 </head><body>
 "@
@@ -1061,13 +1062,13 @@ $SysEventsVer.Warnings.foreach({[void]$Problems.Add($_)})
 #REGION:: SAVE & SEND REPORT
 $ReportHTML = $Header + "<div><table><tr><td><H1>Host <font style='color: green;font-weight: bold;'>$($computerOS.PSComputerName)</font> health report.</H1></td><td style='text-align:right;'>Executed on <i>$ENV:COMPUTERNAME</i> as <i>$ENV:USERNAME</i> at $(get-date -Format s)</td></tr></table>"
 if ($Problems) {
-	$ReportHTML += "<H2>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Problems found:</H2></div>"
+	$ReportHTML += "<H2>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Problems found:</H2></div><div class='twoColumns'>`n"
 	$Problems.foreach({
-		if ($_ -match "Warning:"){$ReportHTML += $_ -replace "<div>","<div><p class='warning'>"}
-		elseif ($_ -match "Error:"){$ReportHTML += $_ -replace "<div>","<div><p class='error'>"}
-		else {$ReportHTML += $_ -replace "<div>","<div><p class='info'>"}
+		if ($_ -match "Error:"){$ReportHTML += "" + ($_ -replace "<div>","<div><p class='error'>") + "`n"}
+		elseif ($_ -match "Warning:") {$ReportHTML += "" + ($_ -replace "<div>","<div><p class='warning'>") + "`n"}
+		else {$ReportHTML += "" + ($_ -replace "<div>","<div><p class='info'>") + "`n"}
 	})
-	$ReportHTML += "`n"
+	$ReportHTML += "</div>`n"
 }
 $ReportHTMLArray.foreach({$ReportHTML += $_})
 $ReportHTML += $Footer
