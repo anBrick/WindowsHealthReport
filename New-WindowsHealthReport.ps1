@@ -985,7 +985,7 @@ while ($null -ne (Get-Job)) {
 		$jout = Receive-Job -Id $jdone.Id
 		if (!$jout) {[void]$Problems.Add("<div>JOB: Warning: `t<i>The JOB $($jdone.Name) on the host $ServerName return no output.</i></div>`r`n")}
 		if ($null -ne $jout) {
-			if (!([string]::IsNullOrEmpty($jout.Warnings))) {$jout.Warnings = $jout.Warnings | Sort-Object -Unique; $jout.Warnings += "<hr />"}
+			if (!([string]::IsNullOrEmpty($jout.Warnings))) {$jout.Warnings = $jout.Warnings | Sort-Object -Unique; }
 			if ($jdone.Name -like "EVT") {$SysEvents = $jout}
 			if ($jdone.Name -like "EVTV") {$SysEventsVer = $jout}
 			if ($jdone.Name -like "FWC") {$WFWStatus = $jout}
@@ -1062,13 +1062,13 @@ $SysEventsVer.Warnings.foreach({[void]$Problems.Add($_)})
 #REGION:: SAVE & SEND REPORT
 $ReportHTML = $Header + "<div><table><tr><td><H1>Host <font style='color: green;font-weight: bold;'>$($computerOS.PSComputerName)</font> health report.</H1></td><td style='text-align:right;'>Executed on <i>$ENV:COMPUTERNAME</i> as <i>$ENV:USERNAME</i> at $(get-date -Format s)</td></tr></table>"
 if ($Problems) {
-	$ReportHTML += "<H2>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Problems found:</H2></div><div class='twoColumns'>`n"
+	$ReportHTML += "<H2>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Problems found:</H2></div><div class='twoColumns'>`n<table width=90%><tr>`n"
 	$Problems.foreach({
-		if ($_ -match "Error:"){$ReportHTML += "" + ($_ -replace "<div>","<div><p class='error'>") + "`n"}
-		elseif ($_ -match "Warning:") {$ReportHTML += "" + ($_ -replace "<div>","<div><p class='warning'>") + "`n"}
-		else {$ReportHTML += "" + ($_ -replace "<div>","<div><p class='info'>") + "`n"}
+		if ($_ -match "Error:"){$EReportHTML += "" + ($_ -replace "<div>","<div>") + "`n"}
+		elseif ($_ -match "Warning:") {$WReportHTML += "" + ($_ -replace "<div>","<div>") + "`n"}
+		else {$EReportHTML += "" + ($_ -replace "<div>","<div>") + "`n"}
 	})
-	$ReportHTML += "</div>`n"
+	$ReportHTML += "<td class=e>" + $EReportHTML + "</td><td class=w>" + $WReportHTML + "</td>" + "</tr></table></div>`n"
 }
 $ReportHTMLArray.foreach({$ReportHTML += $_})
 $ReportHTML += $Footer
