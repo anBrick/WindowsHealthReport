@@ -427,14 +427,17 @@ if ($install) {
 	try {Copy-Item $scriptpath -Destination $(($env:PSModulePath -split ";").Where({$_ -like "$env:ProgramFiles*"})) -Force; $scriptpath = $(($env:PSModulePath -split ";").Where({$_ -like "$env:ProgramFiles*"}).trim() + '\' + $MyInvocation.myCommand.name) }
 	catch {Write-Status -Status Error -Message  "unable to copy script to the %SYSTEMROOT%, running as is."}
 	#Create parameters string to path to the script
-	if ($PSBoundParameters.ContainsKey('Install')) {$PSBoundParameters.Remove('Install')}
-	foreach($h in $MyInvocation.MyCommand.Parameters.GetEnumerator()){
-	   $key = $h.Key;$val = $null;
-   	if ($key -and ($IgnoreParams -notmatch $key)) {$val = Get-Variable -Name $key -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Value
-   	if ($val) {[string]$params += $(' -' + $key + ' ' + $val)}
+	if ($PSBoundParameters.ContainsKey('Install')) { $PSBoundParameters.Remove('Install') }
+	foreach ($key in $PSBoundParameters.Keys)	{
+		if ($key -and ($IgnoreParams -notmatch $key)) { $val = $PSBoundParameters[$key] }
+		# Handle different parameter types
+		if ($val -is [switch]) { $commandString += " -$key" } # For switch parameters, just include the parameter name
+		else { # For other parameters, include both name and value
+			if ($val -is [string]) {$commandString += " -$key '$val'"} # Wrap string values in quotes
+			else {$commandString += " -$key $val"}
 		}
 	}
-	$reporttask = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $('-NoProfile -NonInteractive -ExecutionPolicy ByPass -command ' + '"& {. ''' + $scriptpath + '''' + $params + ';}"')
+	$reporttask = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $('-NoProfile -NonInteractive -ExecutionPolicy ByPass -command ' + '"& {. ''' + $scriptpath + '''' + $commandString + ';}"')
 	$tasktrigger = New-ScheduledTaskTrigger -Daily -At 6am
 	Register-ScheduledTask -TaskName "Send-ServerHealthMailReport" -Action $reporttask -Trigger $tasktrigger -Description "Daily send server health report by email to $($EmailTo)" -User "SYSTEM" -RunLevel Highest -Force
 }
