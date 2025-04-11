@@ -1,4 +1,7 @@
-﻿<# what to detect
+﻿<#
+to install as task:  .\Get-WindowsHealthReport25.ps1 -Install -ServerName localhost -EmailTo hospimed@arion.cz -HealthOnly -ShowProblems
+#>
+<# what to detect
 HW: 	processor socket/cores, - DONE 
 		RAM installed/free, - DONE
 		system temperature  - DONE
@@ -439,7 +442,7 @@ if ($install) {
 	}
 	$reporttask = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $('-NoProfile -NonInteractive -ExecutionPolicy ByPass -command ' + '"& {. ''' + $scriptpath + '''' + $commandString + ';}"')
 	$tasktrigger = New-ScheduledTaskTrigger -Daily -At 6am
-	Register-ScheduledTask -TaskName "Send-ServerHealthMailReport" -Action $reporttask -Trigger $tasktrigger -Description "Daily send server health report by email to $($EmailTo)" -User "SYSTEM" -RunLevel Highest -Force
+	Register-ScheduledTask -TaskName "Send-ServerHealthMailReport($($ServerName))" -Action $reporttask -Trigger $tasktrigger -Description "Daily send server health report by email to $($EmailTo) for $($ServerName)" -User "SYSTEM" -RunLevel Highest -Force
 }
 #############################################################################
 #REGION:: Check Networking
