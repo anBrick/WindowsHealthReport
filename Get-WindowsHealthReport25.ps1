@@ -456,13 +456,13 @@ if (($ServerNameIPResolved -NOTMATCH "^169\.254\.") -AND ($ServerNameIPResolved 
 	$HostIpv4Addresses = Get-WmiObject Win32_NetworkAdapterConfiguration -ComputerName $ServerName -filter 'IPEnabled="True"' | Select-Object -ExpandProperty IPAddress | Where-Object{$_ -notmatch ':'}
 	$HostIpv4Addresses.foreach({if (($_ -MATCH "^192\.168\.") -or ($_ -MATCH "^172\.(1[6-9]|2[0-9]|3[0-1])\.") -or ($_ -MATCH "^10\.")) {$ServerName = $_} 
 	else {
-		[void]$Problems.Add("<div>NET: Warning: `t<i>The host $ServerName has Public IP v4 address [$_].</i></div>`r`n")
+		[void]$Problems.Add("<div>NET: Warning: `t<i>The host has Public IP v4 address assigned: [$_].</i></div>`r`n")
 		
 	}})
 }
 $HostName = (Get-WmiObject win32_computersystem -ComputerName $ServerName).Name
 try {$InternetInfo = Invoke-RestMethod "http://ipinfo.io/json" | Select-Object ip,hostname,city,region,country}
-catch {[void]$Problems.Add("<div>NET: Warning: `t<i>The host $ServerName has probably no internet access.</i></div>`r`n")}
+catch {[void]$Problems.Add("<div>NET: Warning: `t<i>The host has probably no internet access.</i></div>`r`n")}
 if (($emailFrom -notmatch '^[A-Z0-9._%+-]+@(?:[A-Z0-9-]+\.)+[A-Z]{2,}$') -and ($InternetInfo)) { $EmailFrom = $InternetInfo.hostname -replace '^(.*?)\.', '${1}@' }
 $InternetInfo | Add-Member -MemberType NoteProperty -Name "DIAG" -Value (@{ 'hostname' = 'n' })
 #############################################################################
@@ -471,21 +471,21 @@ $InternetInfo | Add-Member -MemberType NoteProperty -Name "DIAG" -Value (@{ 'hos
 	$DomainName = ((Get-WmiObject win32_computersystem -ComputerName $ServerName).Domain -Split "\.")[0]
 	Write-Verbose "Host Name is : $HostName ; Local Domain is : $DomainName"
 	$DCName = (Get-WmiObject -Class win32_ntdomain -Filter "DomainName = '$DomainName'" -ComputerName $ServerName).DomainControllerName
-	if (!$DCName) {[void]$Problems.Add("<div>LAN: Info: `t<i>No Domain Controller (Workgroup Env.).</i></div>`r`n")}
+	if (!$DCName) {[void]$Problems.Add("<div>LAN: Info: `t<i>Workgroup Environment.</i></div>`r`n")}
 	Write-Verbose "DC Name is $DCName"
 #############################################################################
 #REGION:: Get HOST Win OS Info
 	$computerSystem = get-wmiobject Win32_ComputerSystem -ComputerName $ServerName | Select-Object -property *
-	if ($computerSystem.DomainRole -lt 2) {[void]$Problems.Add("<div>OS: Warning: `t<i>Target OS at $ServerName is not Server OS. Result may not be reliable.</i></div>`r`n"); $DIAG.Add('Role', 'w')}
+	if ($computerSystem.DomainRole -lt 2) {[void]$Problems.Add("<div>OS: Warning: `t<i>Target OS is not Server OS. Result may not be reliable.</i></div>`r`n"); $DIAG.Add('Role', 'w')}
 	$computerOS = get-wmiobject Win32_OperatingSystem -ComputerName $ServerName | Select-Object -property *
 	if ([math]::ceiling((NEW-TIMESPAN -Start (Get-CimInstance -ComputerName $ServerName Win32_OperatingSystem).InstallDate -end (get-date)).days /365) -gt 4) {[void]$Problems.Add("<div>OS: Warning: `t<i>This OS installation is too old.</i></div>`r`n"); $DIAG.Add('Installed', 'w')}
-	if ([math]::ceiling($computerOS.FreePhysicalMemory /1MB) -lt $RAMLowFreeLimit) {[void]$Problems.Add("<div>OS: Warning: `t<i>Low Free RAM on $ServerName : $([math]::ceiling($computerOS.FreePhysicalMemory /1MB)) GB.</i></div>`r`n"); $DIAG.Add('Free RAM (GB)', 'w')}
+	if ([math]::ceiling($computerOS.FreePhysicalMemory /1MB) -lt $RAMLowFreeLimit) {[void]$Problems.Add("<div>OS: Warning: `t<i>Low Free RAM: $([math]::ceiling($computerOS.FreePhysicalMemory /1MB)) GB.</i></div>`r`n"); $DIAG.Add('Free RAM (GB)', 'w')}
 	$HostOSinfo = [PSCustomObject]@{'DIAG'=$DIAG; 'Installed' = ([Management.ManagementDateTimeConverter]::ToDateTime($computerOS.InstallDate)).ToString("dd.MM.yyyy"); 'PCName' = $computerOS.PSComputerName; 'Role' = $ComputerRole[$computerSystem.DomainRole]; 'Domain' = $DomainName; 'Note' = $computerOS.Description; 'BootTime' = ([Management.ManagementDateTimeConverter]::ToDateTime($computerOS.LastBootUpTime)).ToString("dd.MM.yyyy"); 'BootupState' = $computerSystem.BootupState; 'OS' = $computerOS.caption; 'SP' = $computerOS.ServicePackMajorVersion; 'Owner' = $computerOS.RegisteredUser; "Free RAM (GB)" = [math]::ceiling($computerOS.FreePhysicalMemory /1MB); 'WinDir' = $computerOS.WindowsDirectory; 'OS Lang' = [System.Globalization.CultureInfo]::GetCultureInfo([int]$computerOS.OSLanguage).DisplayName; 'Reboot Pending' = (Get-PendingRebootState -ServerName $ServerName) }
 	if (!$HostOSinfo) {[void]$Problems.Add("<div>OS: <b>Error:</b> `t<i>No Access to WMI at $ServerName.</i></div>`r`n"); }
-	if ($HostOSinfo.'Reboot Pending') {[void]$Problems.Add("<div>OS: Warning: `t<i>$ServerName OS Reboot Pending.</i></div>`r`n"); $HostOSinfo.DIAG.Add('Reboot Pending','w')}
-	if ((new-timespan -Start (([Management.ManagementDateTimeConverter]::ToDateTime($computerOS.LastBootUpTime))) -End (Get-Date)).Days -le 1) {[void]$Problems.Add("<div>OS: Warning: `t<i>$ServerName was restarted in last 24h.</i></div>`r`n"); $HostOSinfo.DIAG.Add('BootTime','w')}
+	if ($HostOSinfo.'Reboot Pending') {[void]$Problems.Add("<div>OS: Warning: `t<i>OS Reboot Pending.</i></div>`r`n"); $HostOSinfo.DIAG.Add('Reboot Pending','w')}
+	if ((new-timespan -Start (([Management.ManagementDateTimeConverter]::ToDateTime($computerOS.LastBootUpTime))) -End (Get-Date)).Days -le 1) {[void]$Problems.Add("<div>OS: Warning: `t<i>Host was restarted in last 24h.</i></div>`r`n"); $HostOSinfo.DIAG.Add('BootTime','w')}
 	$OSLicensing = Get-CimInstance SoftwareLicensingProduct -Filter "Name like 'Windows%'" -ComputerName $ServerName | Where-Object { $_.PartialProductKey } | Select-Object Name, Description, LicenseStatus
-	if ($OSLicensing.LicenseStatus -ne 1) {[void]$Problems.Add("<div>OS: <b>Error:</b> `t<i>The licensing status: $($OSLicensingStatus[$OSLicensing.LicenseStatus]) for the $HostName is not normal.</i></div>`r`n"); $OSLicensing.psobject.properties.Add([psnoteproperty]::new('DIAG',@{'LicenseStatus'='e'})); $OSLicensing.psobject.properties.Add([psnoteproperty]::new('HState','Unhealthy'))} else { $OSLicensing.psobject.properties.Add([psnoteproperty]::new('DIAG', @{ 'LicenseStatus' = 'n' }));$OSLicensing.psobject.properties.Add([psnoteproperty]::new('HState','Healthy'))}
+	if ($OSLicensing.LicenseStatus -ne 1) {[void]$Problems.Add("<div>OS: <b>Error:</b> `t<i>The licensing status: $($OSLicensingStatus[$OSLicensing.LicenseStatus]) is not normal.</i></div>`r`n"); $OSLicensing.psobject.properties.Add([psnoteproperty]::new('DIAG',@{'LicenseStatus'='e'})); $OSLicensing.psobject.properties.Add([psnoteproperty]::new('HState','Unhealthy'))} else { $OSLicensing.psobject.properties.Add([psnoteproperty]::new('DIAG', @{ 'LicenseStatus' = 'n' }));$OSLicensing.psobject.properties.Add([psnoteproperty]::new('HState','Healthy'))}
 #############################################################################
 #REGION:: MODULES - CODE TO RUN as JOBS
 $rWHW = { #HW info : run remotely
@@ -515,7 +515,7 @@ $rCPU = { #CPU info : run local or remotely
 			$CPUCores += $_.NumberOfLogicalProcessors
 			[void]$r.Add([PSCustomObject]@{'DIAG'=$DIAG; 'CPU' = $_.Name; 'Socket' = $_.SocketDesignation; 'Cores' = $_.NumberOfCores; 'Logical Processors' = $_.NumberOfLogicalProcessors; 'Freq GHz' = [math]::floor($_.MaxClockSpeed/1024) ; 'CPU Load' = $CPULoad})
 		})
-		if ($CPUCores -le 4) { $w += "<div>CPU: Warning: `t<i>The number of CPU cores is low.</i></div>`r`n"; $DIAG.Add('Logical Processors', 'w'); $HState = 'Unhealthy' }
+		if ($CPUCores -le 4) { $w += "<div>CPU: Warning: `t<i>The number of CPU cores: $CPUCores is low.</i></div>`r`n"; $DIAG.Add('Logical Processors', 'w'); $HState = 'Unhealthy' }
 	[pscustomobject]@{'Warnings'=$w; 'report'=$r; 'HState'= $HState}
 }
 $rHDD = { #HDD State : run remotely
@@ -537,8 +537,8 @@ $rVOL = { #Vol space : run remotely
 		$LogicalDrive = ([object[]](Get-WmiObject Win32_LogicalDisk -ComputerName $ServerName)).where({($_.Size -gt 0) -and ($_.DriveType -eq 3) })
 	$LogicalDrive.Foreach({
 			$DIAG = @{ }
-			if (([math]::ceiling($_.FreeSpace/1GB) -lt ($DriveLowFreeSpaceLimit/2)) -and ([math]::ceiling($_.FreeSpace/$_.Size*100) -lt 25)) {$w +="<div>VOL: <b>Error:</b> `t<i>Drive free space is very low, drive: $($_.DeviceID) free space: $([math]::ceiling($_.FreeSpace/1GB)) GB.</i></div>`r`n"; $DIAG ='Error'; $HState = 'Degraded'}
-		 	elseif (([math]::ceiling($_.FreeSpace/1GB) -lt $DriveLowFreeSpaceLimit) -and ([math]::ceiling($_.FreeSpace/$_.Size*100) -lt 25)) {$w +="<div>VOL: Warning: `t<i>Drive free space is low, drive: $($_.DeviceID) free space: $([math]::ceiling($_.FreeSpace/1GB)) GB.</i></div>`r`n"; $DIAG ='Warning'; $HState = 'Unhealthy' }
+			if (([math]::ceiling($_.FreeSpace/1GB) -lt ($DriveLowFreeSpaceLimit/2)) -and ([math]::ceiling($_.FreeSpace/$_.Size*100) -lt 25)) {$w += "<div>VOL: <b>Error:</b> `tDrive free space is very low, drive: <i>$($_.DeviceID) free space: $([math]::ceiling($_.FreeSpace/1GB)) GB.</i></div>`r`n"; $DIAG ='Error'; $HState = 'Degraded'}
+		 	elseif (([math]::ceiling($_.FreeSpace/1GB) -lt $DriveLowFreeSpaceLimit) -and ([math]::ceiling($_.FreeSpace/$_.Size*100) -lt 25)) {$w += "<div>VOL: Warning: `tDrive free space is low, drive: <i>$($_.DeviceID) free space: $([math]::ceiling($_.FreeSpace/1GB)) GB.</i></div>`r`n"; $DIAG ='Warning'; $HState = 'Unhealthy' }
          else { $DIAG = 'NORMAL'; $HState = 'Healthy'}
 		 [void]$r.Add([PSCustomObject]@{'DIAG'=$DIAG; 'Drive' = $_.DeviceID; 'Label' = $_.VolumeName; 'Size (GB)' = "{0:N2}" -f ($_.Size/1GB); 'Free (GB)' = "{0:N2}" -f ($_.FreeSpace/1GB); '% Free' = "{0:P0}" -f ($_.FreeSpace/$_.Size);}); 
 		}) 	
@@ -573,15 +573,15 @@ $AZS = { #AZureAD Join State : run remotely
 }
 $rWUA = { #WUpdate queue : run remotely
 	param ($ServerName,$IgnoreList)
-	$w = @();[Collections.ArrayList]$r=@();$DIAG=@{}; $HState = 'Unhealthy' 
+	$w = @();[Collections.ArrayList]$r=@(); $DIAG = 'UNKNOWN'; $HState = 'Healthy'
 		$session = New-Object -ComObject "Microsoft.Update.Session"
 		$updatesearcher = $session.CreateUpdateSearcher()
 		$searchresult = $updatesearcher.Search("IsInstalled=0")
 		foreach ($update in $searchresult.Updates) {
-		  if ($update.Title -match 'Security') {$w ="<div>WUA: Warning: `t<i>Security patches are ready to install.</i></div>`r`n"; $DIAG ='Warning'; $HState = 'Unhealthy' } else { $DIAG = 'UNKNOWN'; $HState = 'Unknown' }
+		  if ($update.Title -match 'Security') {$w +="<div>WUA: Warning: `t<i>KB$($update.KBArticleIDs)</i> : Security patch is ready to install.</div>`r`n"; $DIAG ='Warning'; $HState = 'Unhealthy' }
 		  [void]$r.Add($([PSCustomObject]@{ 'DIAG' = $DIAG; 'Title' = $update.Title; 'KB' = $($update.KBArticleIDs); }))
 		}
-	if ($r.count -gt 4) {$w +="<div>WUA: Warning: `t<i>Too much Windows Updates available were not installed.</i></div>`r`n"; $HState = 'Unhealthy' }
+	if ($r.count -gt 4) {$w += "<div>WUA: Warning: `tMany Windows Updates available were not installed: <i>$($r.count).</i></div>`r`n"; $DIAG = 'Warning'; $HState = 'Unhealthy' }
 	[pscustomobject]@{'Warnings'=$w; 'report'=$r; 'HState'= $HState}
 }
 $rPUNS = { # Unsigned running processes : run remotely
@@ -597,10 +597,11 @@ $rPUNS = { # Unsigned running processes : run remotely
          else {$prc.psobject.properties.Add([psnoteproperty]::new('SignatureStatusMessage','unsigned'))}
 			if ($prcSign.Status -ne 'Valid') {
 				$prc.psobject.properties.Add([psnoteproperty]::new('DIAG', @{ 'SignatureStatusMessage' = 'e' })); $HState = 'Degraded'
-				[void]$r.Add($($prc | Select-Object DIAG,OriginalFilename,FileDescription,CompanyName,FileName,SignatureStatusMessage,SignatureSubject))
+				[void]$r.Add($($prc | Select-Object DIAG, OriginalFilename, FileDescription, CompanyName, FileName, SignatureStatusMessage, SignatureSubject))
+				$w += "<div>PROC: Warning: `t<i>$($prc.Filename)</i> : Running process has wrong signature.</div>`r`n";
 			}
 		}
-		if ($r.count -gt 1) {$w +="<div>PROC: Warning: `t<i>Some running processes have untrusted signature.</i></div>`r`n"; $HState = 'Unhealthy' }
+		if ($r.count -gt 1) { $HState = 'Unhealthy' }
 	[pscustomobject]@{'Warnings'=$w; 'report'=$r; 'HState'= $HState}
 }
 $rNTP = { #get time sync config and status : run remotely!
@@ -673,7 +674,7 @@ $rSVC = { # Get Services anomalies : run remotely
 			$svc.AssemblyPath = $svc.AssemblyPath -replace '"'
 			$svc.psobject.properties.Add([psnoteproperty]::new('DIAG', $DIAG))
 			if ((-Not ($svc.AssemblyPath | Test-Path -PathType Leaf)) -and (!$svc.AssemblyPath -match '.exe$')) {$svc.AssemblyPath = ($svc.AssemblyPath + '.exe')}
-			if (-Not ($svc.AssemblyPath | Test-Path)) {$w +="<div>SVC: Warning: `t<i>Service with missed executable was found on the host $ServerName.</i></div>`r`n"; $HState = 'Unhealthy' ; $svc.DIAG.Add('AssemblyPath', 'w')
+			if (-Not ($svc.AssemblyPath | Test-Path)) {$w += "<div>SVC: Warning: `t<i>$($svc.Name)</i> : Service with missed executable.</div>`r`n"; $HState = 'Unhealthy' ; $svc.DIAG.Add('AssemblyPath', 'w')
 				[void]$r.Add($($svc | Select-Object -Property DIAG,Name,DisplayName,StartMode,State,Status,StartName,PathName,AssemblyPath,SignatureStatusMessage,SignatureSubject))
 			} #Service Exe not found
 			else {
@@ -683,11 +684,11 @@ $rSVC = { # Get Services anomalies : run remotely
 				#DEBUG
 				#$w +="<p>($svc | Select-Object -Property Name,DisplayName,StartMode,State,Status,StartName,PathName,AssemblyPath,SignatureStatusMessage,SignatureStatus)"
 			}
-			if ((($svc.StartMode -eq "Auto") -and ($svc.State -ne "Running"))) {$svc.DIAG.Add('State', 'e'); $w += "<div>SVC: <b>Error:</b> `t<i>Service $($svc.Name) is configured for Automatic startup but not running on the host $ServerName.</i></div>`r`n"; $HState = 'Degraded'; [void]$r.Add($($svc | Select-Object -Property DIAG,Name,DisplayName,StartMode,State,Status,StartName,PathName,AssemblyPath,SignatureStatusMessage,SignatureSubject))}
-			elseif ($svcSign.Status -ne 'Valid') { $svc.DIAG.Add('SignatureStatusMessage', 'w'); [void]$r.Add($($svc | Select-Object -Property DIAG, Name, DisplayName, StartMode, State, Status, StartName, PathName, AssemblyPath, SignatureStatusMessage, SignatureSubject)) }
-			elseif (($svc.StartName -match $DomainName) -or ($svc.StartName -match $ServerName)) { $svc.DIAG.Add('StartName', 'w'); [void]$r.Add($($svc | Select-Object -Property DIAG, Name, DisplayName, StartMode, State, Status, StartName, PathName, AssemblyPath, SignatureStatusMessage, SignatureSubject)) }
-		}  
-		if ($r.count -gt 1) {$w +="<div>SVC: Warning: `t<i>Strange Services detected.</i></div>`r`n"; $HState = 'Unhealthy' }
+			if ((($svc.StartMode -eq "Auto") -and ($svc.State -ne "Running"))) {$svc.DIAG.Add('State', 'e'); $w += "<div>SVC: <b>Error:</b> `t<i>$($svc.Name)</i> : Service is configured for Automatic start but not running.</i></div>`r`n"; $HState = 'Degraded'; [void]$r.Add($($svc | Select-Object -Property DIAG,Name,DisplayName,StartMode,State,Status,StartName,PathName,AssemblyPath,SignatureStatusMessage,SignatureSubject))}
+		elseif ($svcSign.Status -ne 'Valid') { $svc.DIAG.Add('SignatureStatusMessage', 'w'); [void]$r.Add($($svc | Select-Object -Property DIAG, Name, DisplayName, StartMode, State, Status, StartName, PathName, AssemblyPath, SignatureStatusMessage, SignatureSubject)); $w += "<div>SVC: Warning: `t<i>$($svc.Name)</i> : Service has wrong signature.</div>`r`n";}
+		elseif (($svc.StartName -match $DomainName) -or ($svc.StartName -match $ServerName)) { $svc.DIAG.Add('StartName', 'w'); [void]$r.Add($($svc | Select-Object -Property DIAG, Name, DisplayName, StartMode, State, Status, StartName, PathName, AssemblyPath, SignatureStatusMessage, SignatureSubject)) }
+	}
+	if ($r.count -gt 1) {$HState = 'Unhealthy' }
 	[pscustomobject]@{'Warnings'=$w; 'report'=$r; 'HState'= $HState}
 }
 $rLUS = { #Get Logged ON Users : RUN Remotely		
@@ -807,10 +808,10 @@ $SHA = { #Get Shares report - run Remotely !! Method invocation failed because [
 		$DIAG = @{ }
 		$smbsa = Get-SmbShareAccess -Name $smbshare.name | Select-Object @{ n = 'DIAG'; e = { $DIAG } }, @{ n = 'Path'; e = { $smbshare.path } }, @{ n = 'Description'; e = { $smbshare.Description } }, Name, AccountName, AccessRight, AccessControlType | ForEach-Object {
 			$_.DIAG = @{ };
-			if (($_.AccountName -eq 'Everyone') -and ($_.AccessRight -eq 'Full') -and ($_.AccessControlType -eq 'Allow')) {$w +="<div>SHA: <b>Error:</b> `t<i>Share $($smbshare.name) has Everyone/FullControll access.</i></div>`r`n"; $HState = 'Unhealthy'; $_.DIAG.Add('AccountName', 'w')}
-			if (($_.AccountName -eq 'ANONYMOUS LOGON') -and ($_.AccessRight -eq 'Full') -and ($_.AccessControlType -eq 'Allow')) {$w +="<div>SHA: <b>Error:</b> `t<i>Share $($smbshare.name) has ANONYMOUS LOGON/FullControll access.</i></div>`r`n"; $HState = 'Unhealthy'; $_.DIAG.Add('AccountName', 'e')}
-			if (($_.Path -match "^[a-zA-Z]:\\$") -and ($_.Name -notlike '*$')) {$w +="<div>SHA: Warning: `t<i>The ROOT folder of $($smbshare.Path) is shared.</i></div>`r`n"; $HState = 'Degraded'; $_.DIAG.Add('Path', 'w')}
-			if (($_.Path -notmatch '^[a-zA-Z]:\\(?:[^\\/:*?"<>|\r\n]+\\?)*$') -and (![string]::IsNullOrEmpty($_.Path))) {$w +="<div>SHA: Warning: `t<i>Non common path: $($smbshare.Path) is shared.</i></div>`r`n"; $HState = 'Unhealthy' ; $_.DIAG.Add('Path', 'w')}
+			if (($_.AccountName -eq 'Everyone') -and ($_.AccessRight -eq 'Full') -and ($_.AccessControlType -eq 'Allow')) {$w += "<div>SHA: <b>Error:</b> `tShare <i>$($smbshare.name)</i> has Everyone/FullControll access.</div>`r`n"; $HState = 'Unhealthy'; $_.DIAG.Add('AccountName', 'w')}
+			if (($_.AccountName -eq 'ANONYMOUS LOGON') -and ($_.AccessRight -eq 'Full') -and ($_.AccessControlType -eq 'Allow')) {$w += "<div>SHA: <b>Error:</b> `tShare <i>$($smbshare.name)</i> has ANONYMOUS LOGON/FullControll access.</div>`r`n"; $HState = 'Unhealthy'; $_.DIAG.Add('AccountName', 'e')}
+			if (($_.Path -match "^[a-zA-Z]:\\$") -and ($_.Name -notlike '*$')) {$w += "<div>SHA: Warning: `tThe ROOT folder of <i>$($smbshare.Path)</i> is shared.</div>`r`n"; $HState = 'Degraded'; $_.DIAG.Add('Path', 'w')}
+			if (($_.Path -notmatch '^[a-zA-Z]:\\(?:[^\\/:*?"<>|\r\n]+\\?)*$') -and (![string]::IsNullOrEmpty($_.Path))) {$w += "<div>SHA: Warning: `tNon common path: <i>$($smbshare.Path)</i> is shared.</div>`r`n"; $HState = 'Unhealthy' ; $_.DIAG.Add('Path', 'w')}
 	    	if ($_.DIAG.count -gt 0) {[void]$r.add($_)}
 			}
     }
@@ -838,7 +839,7 @@ $rFWC = { #Get WFW status : run remotely
 	param ($ServerName,$IgnoreList)
 	$w = @();[Collections.ArrayList]$r=@();$DIAG=@{}; $HState = 'Healthy'
 		Get-NetFirewallProfile | Select-Object -Property Name,Enabled,DefaultInboundAction,DefaultOutboundAction,AllowInboundRules,Log* | foreach-object {
-		if (!$_.Enabled) {$w += "<div>WFW: <b>Error:</b> `t<i>The firewall profile $($_.Name) is disabled.</i></div>`r`n"; $HState = 'Degraded'; $_.psobject.properties.Add([psnoteproperty]::new('DIAG', @{ 'Enabled' = 'e' }))}
+		if (!$_.Enabled) {$w += "<div>WFW: <b>Error:</b> `tThe firewall profile <i>$($_.Name)</i> is disabled.</div>`r`n"; $HState = 'Degraded'; $_.psobject.properties.Add([psnoteproperty]::new('DIAG', @{ 'Enabled' = 'e' }))}
 		if ($_.DIAG.Count -gt 0) {[void]$r.Add($_)} 
 		}
 	[pscustomobject]@{'Warnings'=$w; 'report'=$r; 'HState'= $HState}
@@ -849,7 +850,7 @@ $rFWP = { #Analyze Windows Firewall Rules : run remotely
 		Get-NetFirewallPortFilter | ForEach-Object {
 			$fwRule = $_ | Get-NetFirewallRule; $fwapp = ($fwRule | Get-NetFirewallApplicationFilter).Program
 			if ($fwRule.Action -eq 'Allow' -and  $fwRule.Enabled -eq $true -and $fwRule.Direction -eq 'Inbound' -and $_.LocalPort -eq 'Any' -and $_.RemotePort -eq 'Any' -and $fwapp -eq 'Any') {
-			$w += "<div>WFW: Warning: `t<i>Any-Any firewall rule detected: $($fwRule.DisplayName) ($($fwRule.Profile)).</i></div>`r`n"; $HState = 'Unhealthy' ; $fwRule.psobject.properties.Add([psnoteproperty]::new('DIAG', @{ 'DisplayName' = 'e' }))
+			$w += "<div>WFW: Warning: `tAny-Any firewall rule detected: <i>$($fwRule.DisplayName) ($($fwRule.Profile)).</i></div>`r`n"; $HState = 'Unhealthy' ; $fwRule.psobject.properties.Add([psnoteproperty]::new('DIAG', @{ 'DisplayName' = 'e' }))
 			$lport = $_.LocalPort; [void]$r.Add(($fwRule | Select-Object -Property DIAG,DisplayGroup,DisplayName,Profile,direction,@{n='LocalPort';e={$lport}} | Sort-Object -property LocalPort))
 			}
 		}
@@ -876,9 +877,9 @@ $rEVT = { #Get Event Log Errors count - run locally
 		if ($SysWarEvCount -gt 72) {$w += "<div>EVT SYS: Warning: `t<i>Too mach Warnings in SYSTEM Event Log in last 24h.</i></div>`r`n"; $DIAG.Add('System Warnings', 'w')}
 		if ($SecErrEvCount -gt 24) {$w += "<div>EVT SEC: Warning: `t<i>Too mach Errors in SECURITY Event Log in last 24h.</i></div>`r`n"; $DIAG.Add('Security Errors', 'e'); $HState = 'Degraded'}
 		if ($SecWarEvCount -gt 72) {$w += "<div>EVT SEC: Warning: `t<i>Too mach Warnings in SECURITY Event Log in last 24h.</i></div>`r`n"; $DIAG.Add('Security Warnings', 'w')}
-		if ($SYSEVTLogAge -lt 7) {$w += "<div>EVT SYS: Warning: `t<i>The SYSTEM log age is $($SYSEVTLogAge) days.</i></div>`r`n"; $DIAG.Add('System Age', 'w')}
-		if ($SECEVTLogAge -lt 7) {$w += "<div>EVT SYS: Warning: `t<i>The SECURITY log age is $($SECEVTLogAge) days.</i></div>`r`n"; $DIAG.Add('Security Age', 'w'); $HState = 'Unhealthy' }
-		if ($APPEVTLogAge -lt 7) {$w += "<div>EVT SYS: Warning: `t<i>The Application log age is $($APPEVTLogAge) days.</i></div>`r`n"; $DIAG.Add('App Age', 'w')}
+		if ($SYSEVTLogAge -lt 7) {$w += "<div>EVT SYS: Warning: `tThe SYSTEM log age is <i>$($SYSEVTLogAge)</i> days.</div>`r`n"; $DIAG.Add('System Age', 'w')}
+		if ($SECEVTLogAge -lt 7) {$w += "<div>EVT SYS: Warning: `tThe SECURITY log age is <i>$($SECEVTLogAge)</i> days.</div>`r`n"; $DIAG.Add('Security Age', 'w'); $HState = 'Unhealthy' }
+		if ($APPEVTLogAge -lt 7) {$w += "<div>EVT SYS: Warning: `tThe Application log age is <i>$($APPEVTLogAge)</i> days.</div>`r`n"; $DIAG.Add('App Age', 'w')}
 		[void]$r.Add([pscustomobject]@{'DIAG'=$DIAG; 'System Erros'=$SysErrEvCount; 'System Warnings'=$SysWarEvCount; 'System Age'=$SYSEVTLogAge; 'Security Errors'=$SecErrEvCount; 'Security Warnings'=$SecWarEvCount; 'Security Age'=$SECEVTLogAge; 'App Errors'=$AppErrEvCount; 'App Warnings'=$AppWarEvCount; 'App Age'=$APPEVTLogAge;}) 
 	[pscustomobject]@{'Warnings'=$w; 'report'=$r; 'HState'= $HState}
 }
