@@ -665,30 +665,40 @@ $rNTP = { #get time sync config and status : run remotely!
 }
 $rSVC = { # Get Services anomalies : run remotely
 	param ($ServerName,$IgnoreList)
-	$w = @();[Collections.ArrayList]$r=@();$DIAG=@{}; $HState = 'Healthy'
-		$DomainName = (Get-CimInstance win32_computersystem -ComputerName $ServerName).Domain
-		$AllServices = Get-CimInstance -Namespace root\cimv2 -ClassName Win32_Service -ComputerName $ServerName | Select-Object -Property * | Where-Object { $_.Name -notmatch ('({0})' -f ($IgnoreList -join "|")) }
-	foreach ($svc in $AllServices) {
+	$w = @(); [Collections.ArrayList]$r = @(); $DIAG = @{ }; $HState = 'Healthy'
+	$DomainName = (Get-CimInstance win32_computersystem -ComputerName $ServerName).Domain
+	$AllServices = Get-CimInstance -Namespace root\cimv2 -ClassName Win32_Service -ComputerName $ServerName | Select-Object -Property * | Where-Object { $_.Name -notmatch ('({0})' -f ($IgnoreList -join "|")) }
+	foreach ($svc in $AllServices)
+	{
 		$DIAG = @{ }
-			$svc.psobject.properties.Add([psnoteproperty]::new('AssemblyPath',$($svc.PathName -replace '(\s{1,}(\-{1,2}|\/).*){1,}$')))
-			$svc.AssemblyPath = $svc.AssemblyPath -replace '"'
-			$svc.psobject.properties.Add([psnoteproperty]::new('DIAG', $DIAG))
-			if ((-Not ($svc.AssemblyPath | Test-Path -PathType Leaf)) -and (!$svc.AssemblyPath -match '.exe$')) {$svc.AssemblyPath = ($svc.AssemblyPath + '.exe')}
-			if (-Not ($svc.AssemblyPath | Test-Path)) {$w += "<div>SVC: Warning: `t<i>$($svc.Name)</i> : Service with missed executable.</div>`r`n"; $HState = 'Unhealthy' ; $svc.DIAG.Add('AssemblyPath', 'w')
-				[void]$r.Add($($svc | Select-Object -Property DIAG,Name,DisplayName,StartMode,State,Status,StartName,PathName,AssemblyPath,SignatureStatusMessage,SignatureSubject))
-			} #Service Exe not found
-			else {
-				$svcSign = (Get-AuthenticodeSignature -FilePath ($svc.AssemblyPath))
-				$svc.psobject.properties.Add([psnoteproperty]::new('SignatureStatusMessage', $svcSign.StatusMessage))
-				$svc.psobject.properties.Add([psnoteproperty]::new('SignatureSubject', $svcSign.SignerCertificate.Subject))
-				#DEBUG
-				#$w +="<p>($svc | Select-Object -Property Name,DisplayName,StartMode,State,Status,StartName,PathName,AssemblyPath,SignatureStatusMessage,SignatureStatus)"
-			}
-			if ((($svc.StartMode -eq "Auto") -and ($svc.State -ne "Running"))) {$svc.DIAG.Add('State', 'e'); $w += "<div>SVC: <b>Error:</b> `t<i>$($svc.Name)</i> : Service is configured for Automatic start but not running.</i></div>`r`n"; $HState = 'Degraded'; [void]$r.Add($($svc | Select-Object -Property DIAG,Name,DisplayName,StartMode,State,Status,StartName,PathName,AssemblyPath,SignatureStatusMessage,SignatureSubject))}
-		elseif ($svcSign.Status -ne 'Valid') { $svc.DIAG.Add('SignatureStatusMessage', 'w'); [void]$r.Add($($svc | Select-Object -Property DIAG, Name, DisplayName, StartMode, State, Status, StartName, PathName, AssemblyPath, SignatureStatusMessage, SignatureSubject)); $w += "<div>SVC: Warning: `t<i>$($svc.Name)</i> : Service has wrong signature.</div>`r`n";}
+		$svc.psobject.properties.Add([psnoteproperty]::new('AssemblyPath', $($svc.PathName -replace '(\s{1,}(\-{1,2}|\/).*){1,}$')))
+		$svc.AssemblyPath = $svc.AssemblyPath -replace '"'
+		$svc.psobject.properties.Add([psnoteproperty]::new('DIAG', $DIAG))
+		#$svc | select Name,*path,caption | ft
+		if (![string]::IsNullOrEmpty($svc.AssemblyPath) -and !(Test-Path -LiteralPath $svc.AssemblyPath -PathType Leaf) -and ($svc.AssemblyPath -notmatch '.exe$')) { $svc.AssemblyPath = ($svc.AssemblyPath + '.exe') }
+		if (!([string]::IsNullOrEmpty($svc.AssemblyPath)) -and !(Test-Path -LiteralPath $svc.AssemblyPath -PathType Leaf))
+		{
+			$w += "<div>SVC: Warning: `t<i>$($svc.Name)</i> : Service with missed executable.</div>`r`n"; $HState = 'Unhealthy'; $svc.DIAG.Add('AssemblyPath', 'w')
+			[void]$r.Add($($svc | Select-Object -Property DIAG, Name, DisplayName, StartMode, State, Status, StartName, PathName, AssemblyPath, SignatureStatusMessage, SignatureSubject))
+		} #Service Exe not found
+		elseif (!([string]::IsNullOrEmpty($svc.AssemblyPath)))
+		{
+			$svcSign = (Get-AuthenticodeSignature -FilePath ($svc.AssemblyPath))
+			$svc.psobject.properties.Add([psnoteproperty]::new('SignatureStatusMessage', $svcSign.StatusMessage))
+			$svc.psobject.properties.Add([psnoteproperty]::new('SignatureSubject', $svcSign.SignerCertificate.Subject))
+			#DEBUG
+			#$w +="<p>($svc | Select-Object -Property Name,DisplayName,StartMode,State,Status,StartName,PathName,AssemblyPath,SignatureStatusMessage,SignatureStatus)"
+		}
+		else
+		{
+			$w += "<div>SVC: Warning: `t<i>$($svc.Name)</i> : Service with undefind executable.</div>`r`n"; $HState = 'Unhealthy'; $svc.DIAG.Add('AssemblyPath', 'w')
+			[void]$r.Add($($svc | Select-Object -Property DIAG, Name, DisplayName, StartMode, State, Status, StartName, PathName, AssemblyPath, SignatureStatusMessage, SignatureSubject))
+		}
+		if ((($svc.StartMode -eq "Auto") -and ($svc.State -ne "Running"))) { $svc.DIAG.Add('State', 'e'); $w += "<div>SVC: <b>Error:</b> `t<i>$($svc.Name)</i> : Service is configured for Automatic start but not running.</i></div>`r`n"; $HState = 'Degraded'; [void]$r.Add($($svc | Select-Object -Property DIAG, Name, DisplayName, StartMode, State, Status, StartName, PathName, AssemblyPath, SignatureStatusMessage, SignatureSubject)) }
+		elseif ($svcSign.Status -ne 'Valid') { $svc.DIAG.Add('SignatureStatusMessage', 'w'); [void]$r.Add($($svc | Select-Object -Property DIAG, Name, DisplayName, StartMode, State, Status, StartName, PathName, AssemblyPath, SignatureStatusMessage, SignatureSubject)); $w += "<div>SVC: Warning: `t<i>$($svc.Name)</i> : Service has wrong signature.</div>`r`n"; }
 		elseif (($svc.StartName -match $DomainName) -or ($svc.StartName -match $ServerName)) { $svc.DIAG.Add('StartName', 'w'); [void]$r.Add($($svc | Select-Object -Property DIAG, Name, DisplayName, StartMode, State, Status, StartName, PathName, AssemblyPath, SignatureStatusMessage, SignatureSubject)) }
 	}
-	if ($r.count -gt 1) {$HState = 'Unhealthy' }
+	if ($r.count -gt 1) { $HState = 'Unhealthy' }
 	[pscustomobject]@{'Warnings'=$w; 'report'=$r; 'HState'= $HState}
 }
 $rLUS = { #Get Logged ON Users : RUN Remotely		
