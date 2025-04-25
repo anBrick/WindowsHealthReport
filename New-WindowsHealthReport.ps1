@@ -1,4 +1,4 @@
-﻿<#
+<#
 to install as task:  .\Get-WindowsHealthReport25.ps1 -Install -ServerName localhost -EmailTo hospimed@arion.cz -HealthOnly -ShowProblems
 #>
 <# what to detect
@@ -664,18 +664,33 @@ $rNTP = { #get time sync config and status : run remotely!
 	[pscustomobject]@{'Warnings'=$w; 'report'=$r; 'HState'= $HState}
 }
 $rSVC = { # Get Services anomalies : run remotely
-	param ($ServerName,$IgnoreList)
+function Get-ExecutablePath {
+    param ( [string]$InputString )
+    # Case 1: String starts with a quote - extract quoted content
+    if ($InputString -match '^"') {
+        $pattern = '\"([^\"]+)\"'
+        $match = [regex]::Match($InputString, $pattern)
+		if ($match.Success) { return $match.Groups[1].Value }
+    }
+    # Case 2: Look for an executable path pattern (handles spaces without quotes)
+    elseif ($InputString -match '(^[A-Za-z]:\\(?:[^\\/:*?"<>|\r\n]+\\)*[^\\/:*?"<>|\r\n]*\.exe)') { return $matches[1] }
+    # Case 3: Simple space-separated first part (fallback)
+    else {
+        $pattern = '^([^\s]+)'
+        $match = [regex]::Match($InputString, $pattern)
+        if ($match.Success) { return $match.Groups[1].Value }
+    }
+    # Return empty string if no match found
+    return ""
+}
 	$w = @(); [Collections.ArrayList]$r = @(); $DIAG = @{ }; $HState = 'Healthy'
 	$DomainName = (Get-CimInstance win32_computersystem -ComputerName $ServerName).Domain
 	$AllServices = Get-CimInstance -Namespace root\cimv2 -ClassName Win32_Service -ComputerName $ServerName | Select-Object -Property * | Where-Object { $_.Name -notmatch ('({0})' -f ($IgnoreList -join "|")) }
 	foreach ($svc in $AllServices)
 	{
-		$DIAG = @{ }
-		$svc.psobject.properties.Add([psnoteproperty]::new('AssemblyPath', $($svc.PathName -replace '(\s{1,}(\-{1,2}|\/).*){1,}$')))
-		$svc.AssemblyPath = $svc.AssemblyPath -replace '"'
-		$svc.psobject.properties.Add([psnoteproperty]::new('DIAG', $DIAG))
-		#$svc | select Name,*path,caption | ft
-		if (![string]::IsNullOrEmpty($svc.AssemblyPath) -and !(Test-Path -LiteralPath $svc.AssemblyPath -PathType Leaf) -and ($svc.AssemblyPath -notmatch '.exe$')) { $svc.AssemblyPath = ($svc.AssemblyPath + '.exe') }
+		$DIAG = @{ }; $svc.psobject.properties.Add([psnoteproperty]::new('DIAG', $DIAG))
+		$svc.psobject.properties.Add([psnoteproperty]::new('AssemblyPath', $(Get-ExecutablePath $svc.PathName)))
+		if (![string]::IsNullOrEmpty($svc.AssemblyPath) -and !(Test-Path -LiteralPath $svc.AssemblyPath -PathType Leaf) -and ($svc.AssemblyPath -notmatch '.exe$')) {$svc.AssemblyPath = ($svc.AssemblyPath + '.exe') }
 		if (!([string]::IsNullOrEmpty($svc.AssemblyPath)) -and !(Test-Path -LiteralPath $svc.AssemblyPath -PathType Leaf))
 		{
 			$w += "<div>SVC: Warning: `t<i>$($svc.Name)</i> : Service with missed executable.</div>`r`n"; $HState = 'Unhealthy'; $svc.DIAG.Add('AssemblyPath', 'w')
@@ -686,8 +701,6 @@ $rSVC = { # Get Services anomalies : run remotely
 			$svcSign = (Get-AuthenticodeSignature -FilePath ($svc.AssemblyPath))
 			$svc.psobject.properties.Add([psnoteproperty]::new('SignatureStatusMessage', $svcSign.StatusMessage))
 			$svc.psobject.properties.Add([psnoteproperty]::new('SignatureSubject', $svcSign.SignerCertificate.Subject))
-			#DEBUG
-			#$w +="<p>($svc | Select-Object -Property Name,DisplayName,StartMode,State,Status,StartName,PathName,AssemblyPath,SignatureStatusMessage,SignatureStatus)"
 		}
 		else
 		{
