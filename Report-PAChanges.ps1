@@ -33,15 +33,15 @@ if ($install) {
    	if ($val) {[string]$params += $(' -' + $key + ' ' + $val)}
 		}
 	}
-	$xmlQuery = @"
-	<QueryList>
-	  <Query Id="0" Path="Security">
-	    <Select Path="Security">
-	      *[System[(EventID=4724 or EventID=4728 or EventID=4729 or EventID=4732 or EventID=4733 or EventID=4756 or EventID=4757)]]
-	    </Select>
-	  </Query>
-	</QueryList>
-	"@
+$xmlQuery = @"
+<QueryList>
+  <Query Id="0" Path="Security">
+    <Select Path="Security">
+      *[System[(EventID=4724 or EventID=4728 or EventID=4729 or EventID=4732 or EventID=4733 or EventID=4756 or EventID=4757)]]
+    </Select>
+  </Query>
+</QueryList>
+"@
 	$trigger = New-ScheduledTaskTrigger -AtLogOn
 	$trigger.Subscription = $xmlQuery
 	$reporttask = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $('-NoProfile -NonInteractive -ExecutionPolicy ByPass -command ' + '"& {. ''' + $scriptpath + '''' + $params + ';}"')
