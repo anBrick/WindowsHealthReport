@@ -23,13 +23,11 @@ Param(
 $IsAdmin = [Security.Principal.WindowsIdentity]::GetCurrent()
 If ((New-Object Security.Principal.WindowsPrincipal $IsAdmin).IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator) -ne $TRUE) {throw "The Script need to run with the highest privileges! Otherwise, we can't continue :("}
 
-$emailpriority = "High" 
 $ExcludedAccounts = '({0})' -f ((@("^Health",'\$$',"^test",'test$',"^SQL","^MSOL",'[0-9a-fA-F]{4,}')) -join "|") #fill if you want to exclude from alerting
 #init Environment
 $IgnoreParams = 'Install'
 $Warning = $false
 $emailpriority = 2 # High = 2, Low = 1, Normal = 0 
-$emailSmtpServerPort = "25"
 $ServerName = $ENV:COMPUTERNAME
 [Net.ServicePointManager]::SecurityProtocol
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -118,7 +116,7 @@ ForEach ($queryResult in $queryResults) {
 					# <table style= "width: 80%"><tr><td style="text-align: center; background-color: red; width: 5%; color: #ffd261; font-size:36pt; font-weight: bold">!</td><td style="background-color: #ffd261; color: RED; font-weight: bold">&nbsp;POZOR: PODEZØELÁ ZPRÁVA. PROSÍM VÌNUJTE POZORNOST ODESÍLATELI A OBSAHU. MOŽNÉ PODVODNÉ JEDNÁNÍ</td></tr></table>		
 							$body = $Connection | convertto-html -Fragment -PreContent $('<table style= "width: 80%"><tr><td style="text-align: center; background-color: red; width: 5%; color: #ffd261; font-size:36pt; font-weight: bold">!</td><td style="background-color: #ffd261; color: RED; font-weight: bold">&nbsp;HOST: <font color=green>' + $($ServerName) + ' </font> | Logon Alert:</td><td style="background-color: #ffd261; color: RED; font-weight: bold">&nbsp;High privileged account just connected to the host <font color=green>' + $($ServerName) + '</font><br>') -PostContent '</td></tr></table>' 
 							# Send the report email 
-							write-host "Sending email: "$subject
+							write-host "Sending email to $emailTo"
 							# generate FROM address by server DNS name
 							if ($emailFrom -notmatch '^[A-Z0-9._%+-]+@(?:[A-Z0-9-]+\.)+[A-Z]{2,}$') {
 								try { $EmailFrom = ((Invoke-RestMethod "http://ipinfo.io/json" | Select-Object hostname).hostname -replace '^(.*?)\.', '${1}@') -replace '^(.*?)\@', "$ServerName@" }
@@ -132,7 +130,7 @@ ForEach ($queryResult in $queryResults) {
 								if ($NULL -ne $DomainSMTPServer) { $smtpServer = $DomainSMTPServer }
 							}
 							if ([System.Net.Sockets.TcpClient]::new().ConnectAsync($smtpServer, $SmtpServerPort).Wait(600)) {
-							Write-Host "Sending report to $($emailTo) by SMTP:$smtpServer" -foreground magenta
+							Write-Host "Sending report to $($emailTo) from $($emailFrom) by SMTP:$smtpServer" -foreground magenta
 							$emailMessage = New-Object System.Net.Mail.MailMessage
 							$emailMessage.Priority = $emailpriority 
 							$emailMessage.From = $emailFrom
