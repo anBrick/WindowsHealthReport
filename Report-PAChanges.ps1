@@ -1,215 +1,320 @@
 #Requires -RunAsAdministrator
-#AD Module required
 #Requires -Modules ActiveDirectory
 #Requires -Modules DnsClient
 
+[CmdletBinding()]
 param(
-		[Parameter(Mandatory=$false)]
-		[switch]$Install, # set to install to current host (copy to %systemroot%, create system task to run on eany user's logon)
-		[Parameter(Mandatory = $false, ValueFromPipeline = $true, HelpMessage = 'Provide User SAM Account Name(s) for monitoring or use * to monitor ALL DOMAIN user acconts')]
-		[string[]]$ExcludeAccounts = @("^Health",'\$$',"^test",'test$',"^SQL","^MSOL",'[0-9a-fA-F]{4,}'), #Use REGEX Pattern format like: "^Health",'\$$',"^test",'test$',"^SQL","^MSOL",'[0-9a-fA-F]{4,}'
-		[Parameter(Mandatory = $false, HelpMessage = 'This parameter not used for now')]
-		[int]$EventCode, #not used for now
-		[Parameter(Mandatory = $false)]
-		[string]$emailTo = "administrator" + "@"+(Get-WmiObject win32_computersystem).Domain,
-		[Parameter(Mandatory = $false)]
-		$emailFrom = (Get-WmiObject win32_computersystem).DNSHostName+"@"+(Get-WmiObject win32_computersystem).Domain,
-		[Parameter(Mandatory = $false)]
-		$emailSMTP = (Resolve-DnsName -Name (Get-WmiObject win32_computersystem).Domain -Type MX).NameExchange
-)
-#Register Task for schedulled running
-$IgnoreParams = 'Install'
-if ($install) {
-	#copy script to %SystemRoot%
-	$scriptpath = $MyInvocation.MyCommand.Path
-	try {Copy-Item $scriptpath -Destination $($ENV:SystemRoot + '\SYSTEM32') -Force; $scriptpath = $($ENV:SystemRoot + '\SYSTEM32\' + $MyInvocation.myCommand.name) }
-	catch {Write-Error "unable to copy script to the %SYSTEMROOT%, running as is."}
-	$LaunchingUserEmail = ([adsi]"WinNT://$env:USERDOMAIN/$env:USERNAME,user").Properties["mail"]
-	if ([string]::IsNullOrEmpty($emailTo) -And (![string]::IsNullOrEmpty($LaunchingUserEmail)) ) { $emailTo = $LounchingUserEmail}
-	if ($PSBoundParameters.ContainsKey('Install')) {$PSBoundParameters.Remove('Install')}
-	foreach($h in $MyInvocation.MyCommand.Parameters.GetEnumerator()){
-	   $key = $h.Key;$val = $null; 
-   	if ($key -and ($IgnoreParams -notmatch $key)) {$val = Get-Variable -Name $key -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Value
-   	if ($val) {[string]$params += $(' -' + $key + ' ' + $val)}
-		}
-	}
+    [switch]$Install,
+    [string]$emailTo = "administrator@$((Get-WmiObject win32_computersystem).Domain)",
+    [string]$emailFrom = (Get-WmiObject win32_computersystem).DNSHostName+"@" + 'report.' + (Get-WmiObject win32_computersystem).Domain,
+	[string]$smtpServer = 'localhost', 
+	[Parameter(Mandatory=$false)]
+	[int]$smtpServerPort = 25,
+	[Parameter(Mandatory=$false)]
+	[bool]$EnableSsl = $false,
+	[Parameter(Mandatory=$false)]
+	[string]$SmtpUser,
+	[Parameter(Mandatory=$false)]
+	[string]$SmtpPass)
+
+#Global Vars
+$ExcludeAccounts = @("^Health", '\$$', "^test", 'test$', "^SQL", "^MSOL", '[0-9a-fA-F]{4,}')
+$emailpriority = 2
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+$ServerName = $ENV:COMPUTERNAME
+$Warning = $false
+#
+
+# Register Scheduled Task (if -Install is used)
+if ($Install) {
+    try {
+        $scriptPath = $MyInvocation.MyCommand.Path
+        $destPath = "$env:SystemRoot\System32\$($MyInvocation.MyCommand.Name)"
+        Copy-Item -Path $scriptPath -Destination $destPath -Force -ErrorAction Stop
+        Write-Verbose "Script copied to $destPath"
+    }
+    catch {
+        Write-Warning "Failed to copy script to System32: $_"
+    }
+
+    # Build parameter string
+    $params = ""
+    foreach ($h in $MyInvocation.MyCommand.Parameters.GetEnumerator()) {
+        $key = $h.Key
+        if ($key -ne 'Install') {
+            $val = Get-Variable -Name $key -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Value
+            if ($val) { $params += " -$key `"$val`"" }
+        }
+    }
+
+    # Create event subscription for privileged account changes
+# Variables
+$taskName = "Alert-PAUserChanges"
+#$TaskDescription = "Send Email Alert when a Privileged User Account property was modified"
+$xmlPath = "$env:SystemRoot\System32\Alert-PAUserChanges.xml"
+
+# Event filter with multiple event IDs in the Security log
 $xmlQuery = @"
 <QueryList>
   <Query Id="0" Path="Security">
     <Select Path="Security">
-      *[System[(EventID=4724 or EventID=4728 or EventID=4729 or EventID=4732 or EventID=4733 or EventID=4756 or EventID=4757)]]
+      *[System[
+        (EventID=4724 or EventID=4728 or EventID=4729 or EventID=4732 or EventID=4733 or EventID=4756 or EventID=4757)
+        and
+        Provider[@Name='Microsoft-Windows-Security-Auditing']
+      ]]
     </Select>
   </Query>
 </QueryList>
 "@
-	$trigger = New-ScheduledTaskTrigger -AtLogOn
-	$trigger.Subscription = $xmlQuery
-	$reporttask = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $('-NoProfile -NonInteractive -ExecutionPolicy ByPass -command ' + '"& {. ''' + $scriptpath + '''' + $params + ';}"')
-	Register-ScheduledTask -TaskName "Alert-PAUserChanges" -Action $reporttask -Trigger $trigger -Description "send Email Alert when a privileged User account was changed" -User "SYSTEM" -RunLevel Highest -Force
+
+# Build full XML for scheduled task
+$taskXml = @"
+<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Description>Monitors and alerts on privileged account group membership and password changes</Description>
+    <Author>ARION Administrator</Author>
+  </RegistrationInfo>
+  <Triggers>
+    <EventTrigger>
+      <Enabled>true</Enabled>
+      <Subscription>$([System.Security.SecurityElement]::Escape($xmlQuery))</Subscription>
+    </EventTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <UserId>S-1-5-18</UserId> <!-- SYSTEM account -->
+      <RunLevel>HighestAvailable</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <AllowHardTerminate>true</AllowHardTerminate>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
+    <IdleSettings>
+      <StopOnIdleEnd>false</StopOnIdleEnd>
+      <RestartOnIdle>false</RestartOnIdle>
+    </IdleSettings>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <Enabled>true</Enabled>
+    <Hidden>false</Hidden>
+    <RunOnlyIfIdle>false</RunOnlyIfIdle>
+    <WakeToRun>false</WakeToRun>
+    <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
+    <Priority>7</Priority>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>powershell.exe</Command>
+      <Arguments>-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$scriptpath" $params</Arguments>
+    </Exec>
+  </Actions>
+</Task>
+"@
+
+# Ensure directory exists
+$folder = Split-Path $xmlPath
+if (-not (Test-Path $folder)) {
+    New-Item -Path $folder -ItemType Directory -Force | Out-Null
 }
 
-#Prepare Registry for LastRunTime Settings
-# Set variables to indicate value and key to set
-$RegistryPath = 'HKLM:\Software\PowerShell\Scripts\ReportPriviledgedUserActivity'
-$Name         = 'LastRunTime'
-$Value        = '{0}' -f ([system.string]::format('{0:yyyyMMddHHmm}',([datetime]::Now)))
-#Get Last Run Time if available
-try { $LastRunTime = [datetime]::ParseExact((Get-ItemPropertyValue -Path $RegistryPath -Name $Name), "yyyyMMddHHmm", $null) }
-catch {$LastRunTime = [datetime]::Now.AddMinutes(-720)}
-# Create the key if it does not exist
-If (-NOT (Test-Path $RegistryPath)) { New-Item -Path $RegistryPath -Force | Out-Null }  
-# Now set the value of last run time
-New-ItemProperty -Path $RegistryPath -Name $Name -Value $Value -PropertyType String -Force
+# Save the task XML
+$taskXml | Out-File -FilePath $xmlPath -Encoding Unicode
 
-Import-module ActiveDirectory,DnsClient
-$PAUExPatterns = '({0})' -f (($ExcludeAccounts) -join "|") #fill if you want to exclude from alerting
-#Get Priviledged Groups and Users
-$global:ADPrivilegedObjects = (Get-ACL $('AD:\'+ (Get-ADDomain).DistinguishedName)).Access | ?{$_.AccessControlType -eq 'Allow' -and (($_.ActiveDirectoryRights -contains 'GenericAll') -or ($_.ActiveDirectoryRights -like '*WriteProperty*') -or ($_.ActiveDirectoryRights -like '*ExtendedRight*'))} |sort IdentityReference -Unique  | foreach-object {(($_.IdentityReference.Value).Split('\')[1]).ToString()}
-$global:ADPrivilegedGroups = $ADPrivilegedObjects | foreach-object {Get-ADObject -Filter "sAMAccountName -eq `"$_`"" | where {$_.ObjectClass -eq 'group'}} 
-$global:ADPrivilegedUsers = $ADPrivilegedObjects | foreach-object {Get-ADObject -Filter "sAMAccountName -eq `"$_`"" | where {$_.ObjectClass -eq 'user'}}
+# Register the task using schtasks
+schtasks /Create /TN $taskName /XML $xmlPath /F
 
-$ADPrivilegedGroups | % { 
-		$ADPrivilegedUsers += ([adsisearcher]"(&(ObjectCategory=Person)(ObjectClass=User)(memberOf:1.2.840.113556.1.4.1941:=$_))").FindAll().GetDirectoryEntry().SamAccountName
-	}
-$ADPrivilegedUsers = $ADPrivilegedUsers | sort -unique
+# Clean up the XML file after registration (optional)
+Remove-Item -Path $xmlPath -Force
+    exit
+}
+
+# Registry for LastRunTime tracking
+$RegistryPath = 'HKLM:\Software\PowerShell\Scripts\ReportPrivilegedUserActivity'
+$Name = 'LastRunTime'
+try { $LastRunTime = [datetime]::ParseExact((Get-ItemPropertyValue -Path $RegistryPath -Name $Name), "yyyyMMddHHmm", $null)}
+catch { $LastRunTime = [datetime]::Now.AddMinutes(-1440)} # Default to last 24 hours
+
+# Update LastRunTime
+New-Item -Path $RegistryPath -Force | Out-Null
+New-ItemProperty -Path $RegistryPath -Name $Name -Value ([datetime]::Now.ToString("yyyyMMddHHmm")) -PropertyType String -Force
+
+# Load modules
+Import-Module ActiveDirectory,DnsClient -ErrorAction Stop
+
+# Build exclusion regex pattern
+$PAUExPatterns = '({0})' -f ($ExcludeAccounts -join "|")
+
+# Retrieve privileged AD objects
+try {
+    $domainDN = (Get-ADDomain).DistinguishedName
+    $ACL = Get-Acl "AD:$domainDN"
+    
+    $global:ADPrivilegedObjects = $ACL.Access | 
+        Where-Object {
+            $_.AccessControlType -eq 'Allow' -and 
+            ($_.ActiveDirectoryRights -match 'GenericAll|WriteProperty|ExtendedRight')
+        } | 
+        Sort-Object IdentityReference -Unique | 
+        ForEach-Object { $_.IdentityReference.Value.Split('\')[1] }
+
+    $global:ADPrivilegedGroups = $ADPrivilegedObjects | ForEach-Object {
+        Get-ADObject -Filter "sAMAccountName -eq '$_'" | Where-Object {$_.ObjectClass -eq 'group'}
+    }
+
+    $global:ADPrivilegedUsers = $ADPrivilegedObjects | ForEach-Object {
+        Get-ADObject -Filter "sAMAccountName -eq '$_'" | Where-Object {$_.ObjectClass -eq 'user'}
+    }
+
+    # Get nested members of privileged groups
+    foreach ($group in $ADPrivilegedGroups) {
+        $groupDN = $group.DistinguishedName
+        $nestedMembers = ([adsisearcher]"(&(ObjectCategory=Person)(ObjectClass=User)(memberOf:1.2.840.113556.1.4.1941:=$groupDN))").FindAll()
+        $ADPrivilegedUsers += $nestedMembers | ForEach-Object { $_.Properties["samaccountname"][0] }
+    }
+
+    $ADPrivilegedUsers = $ADPrivilegedUsers | Sort-Object -Unique
+}
+catch {
+    Write-Error "Failed to retrieve privileged objects: $_"
+    exit
+}
+
+# Function to check if an account is monitored
+function Test-MonitoredAccount {
+    param(
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [string]$SAMAccountName
+    )
+    process {
+        if ($ADPrivilegedUsers -contains $SAMAccountName) { return $true }
+        if ($SAMAccountName -notmatch $PAUExPatterns) { return $true }
+        return $false
+    }
+}
+
+# Get domain controllers
+try {
+    $DCNames = [System.DirectoryServices.ActiveDirectory.Forest]::GetCurrentForest().Sites | Select-Object -ExpandProperty Servers
+}
+catch { Write-Error "Failed to retrieve domain controllers: $_"; exit }
+
+# Initialize report arrays
 $ReportObj = @()
 $ReportMessage = @()
-function MonitoredAccount #Verify the user belongs to priviledged objects in AD
-{
-param(
-		[Parameter(Mandatory = $true, ValueFromPipeline = $true, HelpMessage = 'Provide User SAM Account Name to check')]
-		[string]$SAMAccountName
-		)
-	if ($UserSAMAccountNames -contains '*') {return $true}
-	elseif ($SAMAccountName.ToUpper() -notmatch $PAUExPatterns.ToUpper()) {return $true}
-	else {return $false}	
+
+# Event IDs to monitor
+$eventIDs = @(4724, 4728, 4729, 4732, 4733, 4756, 4757)
+
+foreach ($dc in $DCNames) {
+    try {
+        # Query all relevant events in one call
+        $events = Get-WinEvent -ComputerName $dc.Name -FilterHashtable @{
+            LogName = 'Security'
+            ID = $eventIDs
+            StartTime = $LastRunTime
+            EndTime = [datetime]::Now
+        } -ErrorAction Stop
+
+        foreach ($event in $events) {
+            switch ($event.Id) {
+                # Password change (4724)
+                4724 {
+                    $targetUser = $event.Properties[0].Value  # TargetUserName
+                    $adminUser = $event.Properties[4].Value   # SubjectUserName
+
+                    if ((Test-MonitoredAccount $adminUser) -or (Test-MonitoredAccount $targetUser)) {
+                        $time = $event.TimeCreated.ToString("dd-MM-yyyy HH:mm:ss")
+                        $group = ([object[]](Get-ADPrincipalGroupMembership $targetUser)).Where({$_.GroupCategory -eq 'Security'}).Name -join ','
+
+                        $ReportObj += [PSCustomObject]@{
+                            Admin  = $adminUser
+                            User   = $targetUser
+                            Group  = $group
+                            DC     = $dc.Name
+                            Time   = $time
+                            Action = 'Password set'
+                        }
+                        $ReportMessage += "Administrator '$adminUser' made password reset on '$targetUser' at '$($dc.Name)' at $time`n"
+                    }
+                }
+
+                # Group membership changes
+                {4728, 4729, 4732, 4733, 4756, 4757 -contains $_} {
+                    $groupName = $event.Properties[2].Value   # GroupName
+                    $adminUser = $event.Properties[6].Value   # SubjectUserName
+                    $targetUser = $event.Properties[0].Value  # MemberName
+
+                    if ($ADPrivilegedGroups.Name -contains $groupName -and ((Test-MonitoredAccount $adminUser) -or (Test-MonitoredAccount $targetUser))) {
+                        $time = $event.TimeCreated.ToString("dd-MM-yyyy HH:mm:ss")
+                        $action = switch ($event.Id) {
+                            {4728, 4732, 4756 -contains $_} { 'User was added to group' }
+                            {4729, 4733, 4757 -contains $_} { 'User was removed from group' }
+                        }
+
+                        $ReportObj += [PSCustomObject]@{
+                            Account   = $targetUser
+                            Group  = $groupName
+                            DC     = $dc.Name
+                            Time   = $time
+                            Action = $action
+                            'By Actor'  = $adminUser
+                        }
+                        $ReportMessage += "'$targetUser' $action '$groupName' by Administrator '$adminUser' at '$($dc.Name)' at $time`n"
+                    }
+                }
+            }
+        }
+    }
+    catch {
+        Write-Warning "Error querying events on $($dc.Name): $_"
+    }
 }
 
-
-$DCNames = ([System.DirectoryServices.ActiveDirectory.Forest]::GetCurrentForest()).Sites | % { $_.Servers }
-	$DCNames | foreach {
-			#Catch Password Changes
-			Get-WinEvent -ComputerName $_.Name -FilterHashtable @{ProviderName= "Microsoft-Windows-Security-Auditing";LogName="Security";Level=0;ID=4724;StartTime=$LastRunTime;EndTime=[datetime]::Now } -ea 0 | Foreach {
-				$event = [xml]$_.ToXml()
-				if($event) {
-					$Time = Get-Date $_.TimeCreated -UFormat "%d-%m-%Y %H:%M:%S"
-					$AdmUser = $event.Event.EventData.Data[4]."#text"
-					$User = $event.Event.EventData.Data[0]."#text"
-					$dc = $event.Event.System.computer
-					if ((MonitoredAccount $AdmUser) -or (MonitoredAccount $User)) {
-						$ReportObj += [pscustomobject]@{ 'Admin' = $AdmUser; 'User' = $User; 'Group' = ((Get-ADPrincipalGroupMembership $User).Where({$_.GroupCategory -eq 'Security'}).Name -Join ','); 'DC' = $dc; 'Time' = $Time; 'Action' = 'Password set'} 
-						$ReportMessage += "`nThe Admin " + $AdmUser + " has set the password for an account " + $User + " on " + $dc + " at " + $Time 
-						write-host $ReportMessage[-1]
-					}
-				}
+# Send email report if changes were detected
+if ($ReportObj.Count -gt 0) {
+			write-host "Preparing meail report message"
+			[string]$body = ""
+			#$body = '<table class=scope><tr><td><H3 style="font-size:17px; font-weight:normal; background-color:#66ccee; margin-top:3px; margin-bottom:1px; margin-left:4px; text-align:left;">' + $($ReportMessage -replace "`n","<br>") + "</H3></td></tr></table>"
+			$body += $ReportObj | ConvertTo-Html  -Fragment -PreContent $('<table style= "width: 100%"><tr><td style="text-align: center; background-color: red; width: 5%; color: #ffd261; font-size:36pt; font-weight: bold">!</td><td style="background-color: #ffd261; color: RED; font-weight: bold">&nbsp;HOST: <font color=green>' + $($ServerName) + ' </font> | PA Changes Alert:</td><td style="background-color: #ffd261; color: RED; font-weight: bold">&nbsp;High privileged account changes occurred<br>') -PostContent '</td></tr></table>'
+			$body += '<div></div><!--End ReportBody--><div><br><center><i>' + $(Get-Date -Format "dd/MM/yyyy HH:mm:ss") + '</i><p style="font-size:8px;color:#7d9797">Script Version: 2025.05 | By: Vladislav Jandjuk | Feedback: jandjuk@arion.cz | Git: github.com/anBrick/WindowsHealthReport</p></center><br></div></body></html>'
+			# generate FROM address by server DNS name
+			if ($emailFrom -notmatch '^[A-Z0-9._%+-]+@(?:[A-Z0-9-]+\.)+[A-Z]{2,}$') {
+				try { $EmailFrom = ((Invoke-RestMethod "http://ipinfo.io/json" | Select-Object hostname).hostname -replace '^(.*?)\.', '${1}@') -replace '^(.*?)\@', "$ServerName@" }
+				catch {$emailFrom = (Get-WmiObject win32_computersystem).DNSHostName+"@"+($emailTo -split "@")[1]}
 			}
-			#Catch Group Membership Changes EventIDs: 4728,4729, 4732,4733, 4756,4757
-			Get-WinEvent -ComputerName $_.Name -FilterHashtable @{ProviderName= "Microsoft-Windows-Security-Auditing";LogName="Security";Level=0;ID=4728;StartTime=$LastRunTime;EndTime=[datetime]::Now } -ea 0 | Foreach {
-				$event = [xml]$_.ToXml()
-				if($event) {
-					$Time = Get-Date $_.TimeCreated -UFormat "%d-%m-%Y %H:%M:%S"
-					$GroupName = $event.Event.EventData.Data[2]."#text"
-					$AdmUser = $event.Event.EventData.Data[6]."#text"
-					$User = $event.Event.EventData.Data[0]."#text"
-					$dc = $event.Event.System.computer
-					if (($ADPrivilegedGroups.Name -contains $GroupName) -and ((MonitoredAccount $AdmUser) -or (MonitoredAccount $User))) {
-						$ReportObj += [pscustomobject]@{ 'Admin' = $AdmUser; 'User' = $User; 'Group' = $GroupName; 'DC' = $dc; 'Time' = $Time; 'Action' = 'User was joined to the group'}
-						$ReportMessage += "`nThe Admin " + $AdmUser + " join the user " + $User + " to the group " + $GroupName + " on " + $dc + " at " + $Time 
-						write-host $ReportMessage[-1]
-					}
-				}
+			#Check MX server for TO Address
+			$ToDomain = $emailTo.Split("@")[1]
+			if (!([System.Net.Sockets.TcpClient]::new().ConnectAsync($smtpServer, $SmtpServerPort).Wait(600)))
+			{
+				$DomainSMTPServer = (Resolve-DnsName -Name $ToDomain -Type MX).NameExchange
+				if ($NULL -ne $DomainSMTPServer) { $smtpServer = $DomainSMTPServer }
 			}
-			Get-WinEvent -ComputerName $_.Name -FilterHashtable @{ProviderName= "Microsoft-Windows-Security-Auditing";LogName="Security";Level=0;ID=4729;StartTime=$LastRunTime;EndTime=[datetime]::Now } -ea 0 | Foreach {
-				$event = [xml]$_.ToXml()
-				if($event) {
-					$Time = Get-Date $_.TimeCreated -UFormat "%d-%m-%Y %H:%M:%S"
-					$GroupName = $event.Event.EventData.Data[2]."#text"
-					$AdmUser = $event.Event.EventData.Data[6]."#text"
-					$User = $event.Event.EventData.Data[0]."#text"
-					$dc = $event.Event.System.computer
-					if (($ADPrivilegedGroups.Name -contains $GroupName) -and ((MonitoredAccount $AdmUser) -or (MonitoredAccount $User))) {
-						$ReportObj += [pscustomobject]@{ 'Admin' = $AdmUser; 'User' = $User; 'Group' = $GroupName; 'DC' = $dc; 'Time' = $Time; 'Action' = 'User was removed from the group'}
-						$ReportMessage += "`nThe Admin " + $AdmUser + " remove the user " + $User + " from the group " + $GroupName + " on " + $dc + " at " + $Time 
-						write-host $ReportMessage[-1]
-					}
-				}
+			if ([System.Net.Sockets.TcpClient]::new().ConnectAsync($smtpServer, $SmtpServerPort).Wait(600)) {
+			Write-Host "Sending report to $($emailTo) by SMTP:$smtpServer" -foreground magenta
+			$emailMessage = New-Object System.Net.Mail.MailMessage
+			$emailMessage.Priority = $emailpriority 
+			$emailMessage.From = $emailFrom
+			$emailMessage.To.Add( $emailTo )
+			$emailMessage.Subject = "Privileged Account Changes Detected - $(Get-Date -Format 'dd-MM-yyyy HH:mm:ss')"
+			$emailMessage.IsBodyHtml = $true
+			$emailMessage.BodyEncoding = [System.Text.Encoding]::Unicode
+			$emailMessage.Body = $body 
+			$emailMessage.Headers.Add('Content-Type', 'content=text/html; charset="UTF-8"');
+			$emailMessage.headers.Add('X-TS-ALERT','ALERT MESSAGE')
+			$SMTPClient = New-Object System.Net.Mail.SmtpClient( $smtpServer , $SmtpServerPort )
+			$SMTPClient.EnableSsl = $EnableSsl
+			if ( ($emailSmtpUser -ne "") -and ($emailSmtpPass -ne "")) {$SMTPClient.Credentials = New-Object System.Net.NetworkCredential( $emailSmtpUser , $emailSmtpPass );}
+			try {$SMTPClient.Send( $emailMessage )} catch {Write-Error "Failed to send email: $_"}
 			}
-			Get-WinEvent -ComputerName $_.Name -FilterHashtable @{ProviderName= "Microsoft-Windows-Security-Auditing";LogName="Security";Level=0;ID=4732;StartTime=$LastRunTime;EndTime=[datetime]::Now } -ea 0 | Foreach {
-				$event = [xml]$_.ToXml()
-				if($event) {
-					$Time = Get-Date $_.TimeCreated -UFormat "%d-%m-%Y %H:%M:%S"
-					$GroupName = $event.Event.EventData.Data[2]."#text"
-					$AdmUser = $event.Event.EventData.Data[6]."#text"
-					$User = $event.Event.EventData.Data[0]."#text"
-					$dc = $event.Event.System.computer
-					if (($ADPrivilegedGroups.Name -contains $GroupName) -and ((MonitoredAccount $AdmUser) -or (MonitoredAccount $User))) {
-						$ReportObj += [pscustomobject]@{ 'Admin' = $AdmUser; 'User' = $User; 'Group' = $GroupName; 'DC' = $dc; 'Time' = $Time; 'Action' = 'User was joined to the group'}
-						$ReportMessage += "`nThe Admin " + $AdmUser + " join the user " + $User + " to the group " + $GroupName + " on " + $dc + " at " + $Time 
-						write-host $ReportMessage[-1]
-					}
-				}
-			}
-			Get-WinEvent -ComputerName $_.Name -FilterHashtable @{ProviderName= "Microsoft-Windows-Security-Auditing";LogName="Security";Level=0;ID=4733;StartTime=$LastRunTime;EndTime=[datetime]::Now } -ea 0 | Foreach {
-				$event = [xml]$_.ToXml()
-				if($event) {
-					$Time = Get-Date $_.TimeCreated -UFormat "%d-%m-%Y %H:%M:%S"
-					$GroupName = $event.Event.EventData.Data[2]."#text"
-					$AdmUser = $event.Event.EventData.Data[6]."#text"
-					$User = $event.Event.EventData.Data[0]."#text"
-					$dc = $event.Event.System.computer
-					if (($ADPrivilegedGroups.Name -contains $GroupName) -and ((MonitoredAccount $AdmUser) -or (MonitoredAccount $User))) {
-						$ReportObj += [pscustomobject]@{ 'Admin' = $AdmUser; 'User' = $User; 'Group' = $GroupName; 'DC' = $dc; 'Time' = $Time; 'Action' = 'User was removed from the group'}
-						$ReportMessage += "`nThe Admin " + $AdmUser + " remove the user " + $User + " from the group " + $GroupName + " on " + $dc + " at " + $Time 
-						write-host $ReportMessage[-1]
-					}
-				}
-			}
-			Get-WinEvent -ComputerName $_.Name -FilterHashtable @{ProviderName= "Microsoft-Windows-Security-Auditing";LogName="Security";Level=0;ID=4756;StartTime=$LastRunTime;EndTime=[datetime]::Now } -ea 0 | Foreach {
-				$event = [xml]$_.ToXml()
-				if($event) {
-					$Time = Get-Date $_.TimeCreated -UFormat "%d-%m-%Y %H:%M:%S"
-					$GroupName = $event.Event.EventData.Data[2]."#text"
-					$AdmUser = $event.Event.EventData.Data[6]."#text"
-					$User = $event.Event.EventData.Data[0]."#text"
-					$dc = $event.Event.System.computer
-					if (($ADPrivilegedGroups.Name -contains $GroupName) -and ((MonitoredAccount $AdmUser) -or (MonitoredAccount $User))) {
-						$ReportObj += [pscustomobject]@{ 'Admin' = $AdmUser; 'User' = $User; 'Group' = $GroupName; 'DC' = $dc; 'Time' = $Time; 'Action' = 'User was joined to the group'}
-						$ReportMessage += "`nThe Admin " + $AdmUser + " join the user " + $User + " to the group " + $GroupName + " on " + $dc + " at " + $Time 
-						write-host $ReportMessage[-1]
-					}
-				}
-			}
-			Get-WinEvent -ComputerName $_.Name -FilterHashtable @{ProviderName= "Microsoft-Windows-Security-Auditing";LogName="Security";Level=0;ID=4757;StartTime=$LastRunTime;EndTime=[datetime]::Now } -ea 0 | Foreach {
-				$event = [xml]$_.ToXml()
-				if($event) {
-					$Time = Get-Date $_.TimeCreated -UFormat "%d-%m-%Y %H:%M:%S"
-					$GroupName = $event.Event.EventData.Data[2]."#text"
-					$AdmUser = $event.Event.EventData.Data[6]."#text"
-					$User = $event.Event.EventData.Data[0]."#text"
-					$dc = $event.Event.System.computer 
-					if (($ADPrivilegedGroups.Name -contains $GroupName) -and ((MonitoredAccount $AdmUser) -or (MonitoredAccount $User))) {
-						$ReportObj += [pscustomobject]@{ 'Admin' = $AdmUser; 'User' = $User; 'Group' = $GroupName; 'DC' = $dc; 'Time' = $Time; 'Action' = 'User was removed from the group'}
-						$ReportMessage += "`nThe Admin " + $AdmUser + " remove the user " + $User + " from the group " + $GroupName + " on " + $dc + " at " + $Time 
-						write-host $ReportMessage[-1]
-					}
-				}
-			}
-	}
-
-If ($ReportObj -ne $null)
-		{
-			$MessageSubject = "Privileged Account changes detected at " + (Get-Date ([datetime]::Now) -UFormat "%d-%m-%Y %H:%M:%S")
-			$MessageBody = "<head><meta http-equiv='Content-Type' content='text/html; charset=UTF-8' /><STYLE>body {background-color: powderblue;}table {border-collapse: collapse;}</STYLE><title>Privileged Account changes detected</title></head><body><br>"
-			$MessageBody += $ReportObj | convertto-html -Fragment 
-			$MessageBody += "</body></html>" 
-
-			$smtp= New-Object System.Net.Mail.SmtpClient $emailSMTP 
-			$msg = New-Object System.Net.Mail.MailMessage $emailFrom, $EmailTo, $MessageSubject, $MessageBody
-			$msg.isBodyhtml = $true 
-			$msg.BodyEncoding =  [System.Text.Encoding]::UTF8
-			$msg.SubjectEncoding = [System.Text.Encoding]::UTF8
-			$smtp.send($msg) 
-			write-host "."
+			else {Write-Host "No SMTP servers available" -foreground magenta}
+			Write-EventLog -LogName Application -Source "Winlogon" -EntryType "Warning" -EventID 21 -Message $($subject + " from: " + $EventMessageHostIP + " " + $($IPLocation.City + ", " + $IPLocation.country)) 	
+        Write-Output "Email alert sent successfully"
 }
 
-$ReportObj
+# Output results (for logging or console)
+$ReportMessage
