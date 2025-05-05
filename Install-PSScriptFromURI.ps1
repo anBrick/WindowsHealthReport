@@ -1,6 +1,10 @@
 ﻿<#
 https://raw.githubusercontent.com/anBrick/WindowsHealthReport/refs/heads/main/Install-PSScriptFromURI.ps1
-powershell -c "irm https://tinyurl.com/anbrick | iex"
+probably antivirus blocking
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; $scriptUrl = "https://tinyurl.com/anbrick"; IEX (Invoke-WebRequest -Uri $scriptUrl -UseBasicParsing).Content
+if A/V block use this:
+Invoke-WebRequest -Uri 'https://tinyurl.com/anbrick' -OutFile '.\Install-PSScriptFromURI.ps1'
+& '.\Install-PSScriptFromURI.ps1'
 #>
 #Variables
 $Script2Install = @(
@@ -8,22 +12,6 @@ $Script2Install = @(
     @{Name = "Report-PAChanges.ps1"; Params = "-Install -emailTo BETA@ARION.cz"}
 )
 $BaseURI = "https://raw.githubusercontent.com/anBrick/WindowsHealthReport/main/"
-
-# Define Write-Status function
-function Write-Status {
-    param (
-        [Parameter]
-        [string]$Status = 'Info',
-        [Parameter(Mandatory=$true)]
-        [string]$Message
-    )
-    
-    switch ($Status) {
-        "Warning" { Write-Host "WARNING: $Message" -ForegroundColor Yellow }
-        "Error"   { Write-Host "ERROR: $Message" -ForegroundColor Red }
-        default   { Write-Host "INFO: $Message" -ForegroundColor Green }
-    }
-}
 
 # Runtime
 # Check high privileged execution and exit when not running as admin
@@ -37,20 +25,20 @@ $ScriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
 foreach ($script in $Script2Install) {
     $LocalFileCopy = Join-Path $ENV:TEMP $script.Name
     try {
-    	  Write-Status -message "Downloading $script.Name"
+    	  Write-Host "Downloading $($script.Name)"
         Invoke-WebRequest -Uri $($BaseURI + $script.Name) -UseDefaultCredentials -OutFile $LocalFileCopy
-        Write-Status -message "Unblocking $LocalFileCopy"
+        Write-Host "Unblocking $LocalFileCopy"
         Unblock-File $LocalFileCopy
-        Write-Status -message "Copy $LocalFileCopy to $ScriptPath"
+        Write-Host "Copy $LocalFileCopy to $ScriptPath"
         Copy-Item $LocalFileCopy -Destination $ScriptPath -Force
         Remove-Item $LocalFileCopy -ErrorAction SilentlyContinue
     }
     catch {
-        Write-Status -Status Error -Message "Unable to Download from $BaseURI. Skipped $($script.Name)"
+        Write-Host "Unable to Download from $BaseURI. Skipped $($script.Name)"
     }
-    Write-Status -message "Prepare to run $script.Name"
+    Write-Host "Prepare to run $($script.Name)"
     $ScriptToRun = Join-Path $ScriptPath $script.Name
-    Write-Status -message "Invoke $script.Name"
+    Write-Host "Invoke $ScriptToRun"
     Invoke-Expression "& `"$ScriptToRun`" $($script.Params)"
 }
 #EndofScript
