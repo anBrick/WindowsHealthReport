@@ -1,15 +1,13 @@
-﻿<#
-https://raw.githubusercontent.com/anBrick/WindowsHealthReport/refs/heads/main/Install-PSScriptFromURI.ps1
-probably antivirus blocking
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; $scriptUrl = "https://tinyurl.com/anbrick"; IEX (Invoke-WebRequest -Uri $scriptUrl -UseBasicParsing).Content
-if A/V block use this:
-Invoke-WebRequest -Uri 'https://tinyurl.com/anbrick' -OutFile '.\Install-PSScriptFromURI.ps1'
-& '.\Install-PSScriptFromURI.ps1'
-#>
+﻿# https://raw.githubusercontent.com/anBrick/WindowsHealthReport/refs/heads/main/Install-PSScriptFromURI.ps1
+# probably antivirus blocking
+# [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; $scriptUrl = "https://tinyurl.com/anbrick"; IEX (Invoke-WebRequest -Uri $scriptUrl -UseBasicParsing).Content
+# if A/V block use this:
+# Invoke-WebRequest -Uri 'https://tinyurl.com/anbrick' -OutFile '.\Install-PSScriptFromURI.ps1'; & '.\Install-PSScriptFromURI.ps1'
+
 #Variables
 [object[]]$Script2Install = @(
-    @{Name = "Alert-PrivUserLogon.ps1"; Params = "-Install -emailTo BETA@ARION.cz"; Comment = "Install Always"},
-    @{Name = "Report-PAChanges.ps1"; Params = "-Install -emailTo BETA@ARION.cz"; Comment = "Install only to Domain Controller!"}
+    [pscustomobject]@{Name = "Alert-PrivUserLogon.ps1"; Params = "-Install -emailTo BETA@ARION.cz"; Comment = "Install Always"},
+    [pscustomobject]@{Name = "Report-PAChanges.ps1"; Params = "-Install -emailTo BETA@ARION.cz"; Comment = "Install only to Domain Controller!"}
 )
 $BaseURI = "https://raw.githubusercontent.com/anBrick/WindowsHealthReport/main/"
 
