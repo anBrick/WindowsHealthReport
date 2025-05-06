@@ -38,7 +38,7 @@ foreach ($script in $Script2Install) {
     }
     Write-Host "Prepare to run $($script.Name)"
     $ScriptToRun = Join-Path $ScriptPath $script.Name
-    Write-Host "Invoke $ScriptToRun"
+    Write-Host "Invoke Install $ScriptToRun"
     Invoke-Expression "& `"$ScriptToRun`" $($script.Params)"
 }
 #EndofScript
