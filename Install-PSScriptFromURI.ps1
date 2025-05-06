@@ -7,9 +7,9 @@ Invoke-WebRequest -Uri 'https://tinyurl.com/anbrick' -OutFile '.\Install-PSScrip
 & '.\Install-PSScriptFromURI.ps1'
 #>
 #Variables
-$Script2Install = @(
-    @{Name = "Alert-PrivUserLogon.ps1"; Params = "-Install -emailTo BETA@ARION.cz"},
-    @{Name = "Report-PAChanges.ps1"; Params = "-Install -emailTo BETA@ARION.cz"}
+[object[]]$Script2Install = @(
+    @{Name = "Alert-PrivUserLogon.ps1"; Params = "-Install -emailTo BETA@ARION.cz"; Comment = "Install Always"},
+    @{Name = "Report-PAChanges.ps1"; Params = "-Install -emailTo BETA@ARION.cz"; Comment = "Install only to Domain Controller!"}
 )
 $BaseURI = "https://raw.githubusercontent.com/anBrick/WindowsHealthReport/main/"
 
@@ -21,6 +21,8 @@ If ((New-Object Security.Principal.WindowsPrincipal $IsAdmin).IsInRole([Security
 }
 
 $ScriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
+
+$Script2Install = $Script2Install | Out-GridView -Title "Select Script(s) to install." -OutputMode "Multiple"
 
 foreach ($script in $Script2Install) {
     $LocalFileCopy = Join-Path $ENV:TEMP $script.Name
