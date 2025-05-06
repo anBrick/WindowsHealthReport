@@ -33,6 +33,45 @@ $ServerName = $ENV:COMPUTERNAME
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 Set-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NetFramework\v4.0.30319' -Name 'SchUseStrongCrypto' -Value '1' -Type DWord
 Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\.NetFramework\v4.0.30319' -Name 'SchUseStrongCrypto' -Value '1' -Type DWord
+#Functions
+function Write-Status {
+Param( 
+	[Parameter(Mandatory=$true)]
+	[string]$Message,
+	[Parameter(Mandatory=$false)]
+	[ValidateSet("Information", "Warning", "Error")]
+	$Status = 'Information'
+)
+	switch ($Status) {
+		'Information' {Write-host $Message}
+		'Warning' {Write-host $Message -foregroundColor yellow}
+		'Error' {Write-Error $Message}
+	}
+	Write-EventLog -LogName Application -Source "Userenv" -EntryType $Status -EventID 34343 -Message $($MyInvocation.myCommand.name + " :: " + $Message) -ea 0 
+}
+#Auto Update Code
+$ScriptDistributionPoints = @('c:\report\',$($ENV:LOGONSERVER + "\NETLOGON\"),"https://raw.githubusercontent.com/anBrick/WindowsHealthReport/main/") ## path for automatic upgrade from
+foreach ($ScriptDistributionPoint in $ScriptDistributionPoints){
+if ($ScriptDistributionPoint -match "^(https?:\/\/)") {
+	$UpdatesFile = $ENV:TEMP + '\' + $MyInvocation.myCommand.name
+	try {
+		Invoke-WebRequest -Uri $($ScriptDistributionPoint + $MyInvocation.myCommand.name) -UseDefaultCredentials -OutFile $UpdatesFile
+		Unblock-File $UpdatesFile
+		Copy-Item $UpdatesFile -Destination $($MyInvocation.MyCommand.Path) -Force;
+		Remove-Item $UpdatesFile -ea 0
+	}
+	catch {Write-Status -Status Error -Message "ERROR: Unable to install updates from $ScriptDistributionPoint, running as is."}
+}
+else {
+	if ((Test-Path -PathType Leaf -LiteralPath ($ScriptDistributionPoint + $MyInvocation.myCommand.name)) -and ((Get-Item ($ScriptDistributionPoint + $MyInvocation.myCommand.name)).LastWriteTime.ticks -gt ((Get-Item $MyInvocation.MyCommand.Path).LastWriteTime.ticks)))
+	{
+		Write-Status -Status Information -Message ('The Distribution point has the newest version of the script. Starting Upgrade itself')
+		try { Copy-Item ($ScriptDistributionPoint + $MyInvocation.myCommand.name) -Destination $($MyInvocation.MyCommand.Path) -Force; }
+		catch { Write-Status -Status Error -Message  "ERROR: Impossible to upgrade the script from the $ScriptDistributionPoint, leaving it as is." }
+	}
+}
+}
+#
 # Get today's date for the report 
 $today = Get-Date
  
