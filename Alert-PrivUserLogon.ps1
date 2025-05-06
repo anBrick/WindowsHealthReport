@@ -93,6 +93,7 @@ if ($install) {
 	$reporttask = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $('-NoProfile -NonInteractive -ExecutionPolicy ByPass -command ' + '"& {. ''' + $scriptpath + '''' + $params + ';}"')
 	$tasktrigger = New-ScheduledTaskTrigger -AtLogOn
 	Register-ScheduledTask -TaskName "Alert-PAUserLogon" -Action $reporttask -Trigger $tasktrigger -Description "send Email Alert when a privileged User was Logged on" -User "SYSTEM" -RunLevel Highest -Force
+	Write-Status -Status Information -Message ('SUCCESS: The scheduled task "Alert-PAUserLogon" has successfully been created.')
 }
 #Region Funcions
 function Is-Admin { #test does the user hold the high privilege on local system
