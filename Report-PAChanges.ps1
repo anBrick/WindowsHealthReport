@@ -198,27 +198,18 @@ try {
         Sort-Object IdentityReference -Unique | 
         ForEach-Object { $_.IdentityReference.Value.Split('\')[1] }
 
-    $global:ADPrivilegedGroups = $ADPrivilegedObjects | ForEach-Object {
-        Get-ADObject -Filter "sAMAccountName -eq '$_'" | Where-Object {$_.ObjectClass -eq 'group'}
-    }
-
-    $global:ADPrivilegedUsers = $ADPrivilegedObjects | ForEach-Object {
-        Get-ADObject -Filter "sAMAccountName -eq '$_'" | Where-Object {$_.ObjectClass -eq 'user'}
-    }
-
+    $global:ADPrivilegedGroups = $ADPrivilegedObjects | ForEach-Object { Get-ADObject -Filter "sAMAccountName -eq '$_'" | Where-Object {$_.ObjectClass -eq 'group'}}
+    $ADPPUA = $ADPrivilegedObjects | ForEach-Object {(Get-ADObject -Filter "sAMAccountName -eq '$_'" | Where-Object {$_.ObjectClass -eq 'user'} | select Name).Name}
     # Get nested members of privileged groups
     foreach ($group in $ADPrivilegedGroups) {
         $groupDN = $group.DistinguishedName
         $nestedMembers = ([adsisearcher]"(&(ObjectCategory=Person)(ObjectClass=User)(memberOf:1.2.840.113556.1.4.1941:=$groupDN))").FindAll()
-        $ADPrivilegedUsers += $nestedMembers | ForEach-Object { $_.Properties["samaccountname"][0] }
+        $ADPPUA += $nestedMembers | ForEach-Object { $_.Properties["samaccountname"][0] }
     }
-
-    $ADPrivilegedUsers = $ADPrivilegedUsers | Sort-Object -Unique
+    $ADPPUA
+    $global:ADPrivilegedUsers = $ADPPUA
 }
-catch {
-    Write-Error "Failed to retrieve privileged objects: $_"
-    exit
-}
+catch { Write-Error "Failed to retrieve privileged objects: $_"; exit }
 
 # Function to check if an account is monitored
 function Test-MonitoredAccount {
@@ -227,9 +218,8 @@ function Test-MonitoredAccount {
         [string]$SAMAccountName
     )
     process {
-        if ($ADPrivilegedUsers -contains $SAMAccountName) { return $true }
-        if ($SAMAccountName -notmatch $PAUExPatterns) { return $true }
-        return $false
+        if (($global:ADPrivilegedUsers -contains $SAMAccountName) -and ($SAMAccountName -notmatch $PAUExPatterns)) { return $true }
+        else {return $false}
     }
 }
 
