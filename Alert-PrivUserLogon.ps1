@@ -47,7 +47,7 @@ Param(
 		'Warning' {Write-host $Message -foregroundColor yellow}
 		'Error' {Write-Error $Message}
 	}
-	Write-EventLog -LogName Application -Source "Userenv" -EntryType $Status -EventID 34343 -Message $($MyInvocation.myCommand.name + " :: " + $Message) -ea 0 
+	Write-EventLog -LogName Application -Source "Userenv" -EntryType $Status -EventID 34343 -Message $(( '{0} Runtime message:: {1}') -f $MyInvocation.myCommand.name,$Message) -ea 0 
 }
 #Auto Update Code
 $ScriptDistributionPoints = @('c:\report\',$($ENV:LOGONSERVER + "\NETLOGON\"),"https://raw.githubusercontent.com/anBrick/WindowsHealthReport/main/") ## path for automatic upgrade from
@@ -177,7 +177,8 @@ ForEach ($queryResult in $queryResults) {
 							$emailMessage.To.Add( $emailTo )
 							$emailMessage.Subject = $subject
 							$emailMessage.IsBodyHtml = $true
-							$emailMessage.BodyEncoding = [System.Text.Encoding]::Unicode
+							$emailMessage.SubjectEncoding = [System.Text.Encoding]::UTF8
+							$emailMessage.BodyEncoding = [System.Text.Encoding]::UTF8
 							$emailMessage.Body = $body
 							$emailMessage.Headers.Add('Content-Type', 'content=text/html; charset="UTF-8"');
 							$emailMessage.headers.Add('X-TS-ALERT','ALERT MESSAGE')
