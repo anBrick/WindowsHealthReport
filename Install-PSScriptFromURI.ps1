@@ -7,7 +7,7 @@
 #Variables
 [object[]]$Script2Install = @(
     [pscustomobject]@{Name = "Alert-PrivUserLogon.ps1"; Params = "-Install -emailTo BETA@ARION.cz"; Comment = 'Report PUA Logon : Install Always'},
-    [pscustomobject]@{Name = "Report-PAChanges.ps1"; Params = "-Install -emailTo BETA@ARION.cz"; Comment = 'Report PUA Changes : Install to EACH Domain Controller!'}
+    [pscustomobject]@{Name = "Report-PAChanges.ps1"; Params = "-Install -emailTo BETA@ARION.cz"; Comment = 'Report PUA Changes : Install to EACH Domain Controller!'},
     [pscustomobject]@{Name = "Get-WindowsHealthReport25.ps1"; Params = "-Install -emailTo BETA@ARION.cz -HealthOnly -ShowProblems"; Comment = "Report ServerHealth : Install where needed."}
 )
 $BaseURI = "https://raw.githubusercontent.com/anBrick/WindowsHealthReport/main/"
