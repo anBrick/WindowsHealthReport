@@ -74,7 +74,9 @@ param(
 	HelpMessage = { ("`nEnter an SMTP server address.`n  Usage:  .\") + $myinvocation.MyCommand.Name + (" -ServerName localhost -SMTPServer mail.domain.com`n") })]
    [string]$smtpServer = "localhost",
   [Parameter(Mandatory=$false)]
-   [switch]$ShowProblems, # Display verbose information about errors & warnings detected
+   [switch]$ShowProblems, # Display verbose information about errors & warnings detected (retired)
+  [Parameter(Mandatory=$false)]
+   [switch]$NoProblems, # Omit verbose information about errors & warnings detected 
   [Parameter(Mandatory=$false)]
    [switch]$HealthOnly, # Display breaf health info about each test insted of detailed table
   [Parameter(Mandatory=$false, 
@@ -1109,7 +1111,7 @@ $SysEventsVer.Warnings.foreach({[void]$Problems.Add($_)})
 #############################################################################
 #REGION:: SAVE & SEND REPORT
 $ReportHTML = $Header + "<div><table><tr><td><H1>Host <font style='color: green;font-weight: bold;'>$($computerOS.PSComputerName)</font> health report.</H1></td><td style='text-align:right;'>Executed on <i>$ENV:COMPUTERNAME</i> as <i>$ENV:USERNAME</i> at $(get-date -Format s)</td></tr></table>"
-if ($Problems -and $ShowProblems) {
+if ($Problems -and ($ShowProblems -or !$NoProblems)) {
 	$ReportHTML += "<H2>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Problems found:</H2></div><div class='twoColumns'>`n<table width=90%><tr>`n"
 	$Problems.foreach({
 		if ($_ -match "Error:"){$EReportHTML += "" + ($_ -replace "<div>","<div>") + "`n"}
