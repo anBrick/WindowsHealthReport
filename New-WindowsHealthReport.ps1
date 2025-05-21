@@ -380,25 +380,28 @@ if ($Ignore){
 foreach ($ScriptDistributionPoint in $ScriptDistributionPoints){
 if ($ScriptDistributionPoint -match "^(https?:\/\/)") {
 	$UpdatesFile = $ENV:TEMP + '\' + $MyInvocation.myCommand.name
-	try {
-		Invoke-WebRequest -Uri $($ScriptDistributionPoint + $MyInvocation.myCommand.name) -UseDefaultCredentials -OutFile $UpdatesFile
-		Unblock-File $UpdatesFile
-		Copy-Item $UpdatesFile -Destination $($MyInvocation.MyCommand.Path) -Force;
-		Remove-Item $UpdatesFile -ea 0
+	try {Invoke-WebRequest -Uri $($ScriptDistributionPoint + $MyInvocation.myCommand.name) -UseDefaultCredentials -OutFile $UpdatesFile
+		Write-Status -Status Information -Message "New version downloaded from $($ScriptDistributionPoint + $MyInvocation.myCommand.name), begin updating itself."
 	}
-	catch {Write-Status -Status Error -Message "ERROR: Unable to install updates from $ScriptDistributionPoint, running as is."}
+	catch {Write-Status -Status Error -Message "ERROR $_ : Unable to downlaod updates from $($ScriptDistributionPoint + $MyInvocation.myCommand.name), running as local version."}
+	Unblock-File $UpdatesFile
+	try {Copy-Item $UpdatesFile -Destination $($MyInvocation.MyCommand.Path) -Force;
+		Write-Status -Status Information -Message "New version installed to $($MyInvocation.MyCommand.Path)."
+	}
+	catch {Write-Status -Status Error -Message "ERROR $_ : Unable to uplaod updates to $($MyInvocation.MyCommand.Path), update failed."}
+	Remove-Item $UpdatesFile -ea 0
 }
 else {
 	if ((Test-Path -PathType Leaf -LiteralPath ($ScriptDistributionPoint + $MyInvocation.myCommand.name)) -and ((Get-Item ($ScriptDistributionPoint + $MyInvocation.myCommand.name)).LastWriteTime.ticks -gt ((Get-Item $MyInvocation.MyCommand.Path).LastWriteTime.ticks)))
 	{
 		Write-Status -Status Information -Message ('The Distribution point has the newest version of the script. Starting Upgrade itself')
 		try { Copy-Item ($ScriptDistributionPoint + $MyInvocation.myCommand.name) -Destination $($MyInvocation.MyCommand.Path) -Force; }
-		catch { Write-Status -Status Error -Message  "ERROR: Impossible to upgrade the script from the $ScriptDistributionPoint, leaving it as is." }
+		catch { Write-Status -Status Error -Message  "ERROR $_ : Impossible to upgrade the script from the $ScriptDistributionPoint, leaving it as is." }
 	}
 }
 }
 #Check Language mode locally and remotely
-if ($ExecutionContext.Sessionstate.LanguageMode -ne 'FullLanguage') {[void]$Problems.Add("<div>RUNTIME: Warning: `t<i>The Local POWERSHELL is not in FULL LANGUAGE MODE. The report will have limited details.</i></div>`r`n")}
+if ($ExecutionContext.Sessionstate.LanguageMode -ne 'FullLanguage') {[void]$Problems.Add("<div>RUNTIME: Warning: `t<i>The Local POWERSHELL is not in FULL LANGUAGE MODE. The report will have limited details.</i></div>`r`n"); Write-Status -Status Warning -Message  "Warning: POWERSHELL is not in FULL LANGUAGE MODE. The report will have limited details."}
 $remotesesstion = New-PSSession -ComputerName $ServerName
 if ((Invoke-Command -Session $remotesesstion -ScriptBlock { $ExecutionContext.SessionState.LanguageMode }).Value -ne 'FullLanguage') {[void]$Problems.Add("<div>RUNTIME: Warning: `t<i>The POWERSHELL on host $ServerName is not in FULL LANGUAGE MODE. The report will have limited details or unreliable details.</i></div>`r`n")}
 Remove-PSSession -Id $remotesesstion.Id
