@@ -215,16 +215,16 @@ param(
 
     if (($ServerName -eq 'localhost') -or ($ServerName -eq "127.0.0.1")) {$ServerName = $env:COMPUTERNAME}
     try {
-        [System.Net.IPAddress]::Parse($ServerName)
-        $ServerName = [System.Net.Dns]::GetHostEntry($ServerName)
+        #[System.Net.IPAddress]::Parse($ServerName)
+        $ServerName = ([System.Net.Dns]::GetHostEntry($ServerName)).HostName
     } catch {}
 	$result = $Null
     try {$RemoteRegistry = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey($Hive, $ServerName)}
     catch {$result = $Null}
     if ($RemoteRegistry) {
         try {
-   		    if (![string]::IsNullOrEmpty($Value)) {$result = $RemoteRegistry.OpenSubKey($Key).getvalue($Value)}
-		    else {$result = $RemoteRegistry.OpenSubKey($Key)}
+   		   if (![string]::IsNullOrEmpty($Value)) {$result = $RemoteRegistry.OpenSubKey($Key).getvalue($Value)}
+		    	else {$result = $RemoteRegistry.OpenSubKey($Key)}
         }
         catch {$result = $Null}
     }else {$result = $Null}
@@ -555,17 +555,13 @@ $rVOL = { #Vol space : run remotely
 $AZS = { #AZureAD Join State : run remotely
 	param ($ServerName,$IgnoreList)
 	$w = @();[Collections.ArrayList]$r=@();$DIAG=@{}; $HState = 'Healthy'
-	try
-	{
-		[array]$cmdOutput = dsregcmd /status
-		if ($cmdOutput) { $AZStatus = [PSCustomObject]@{ 'DIAG' = @{ 'TenantName' = 'n' }; 'TenantName' = ($cmdOutput | Where-Object{ $_ -match 'TenantName' }).Split(":")[1].trim(); 'Device Name' = ($cmdOutput | Where-Object{ $_ -match 'Device Name' }).Split(":")[1].trim(); 'AzureAdJoined' = ($cmdOutput | Where-Object{ $_ -match 'AzureAdJoined' }).Split(":")[1].trim(); 'EnterpriseJoined' = ($cmdOutput | Where-Object{ $_ -match 'EnterpriseJoined' }).Split(":")[1].trim(); 'DomainJoined' = ($cmdOutput | Where-Object{ $_ -match 'DomainJoined' }).Split(":")[1].trim(); 'Virtual Desktop' = ($cmdOutput | Where-Object{ $_ -match 'Virtual Desktop' }).Split(":")[1].trim() } }
-	}
+	try {	[array]$cmdOutput = dsregcmd /status}
 	catch { }
-	try {
-		$cmdOutput = & 'C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe' show # | findstr /C:"Agent Status"
+	if ($cmdOutput) { $AZStatus = [PSCustomObject]@{ 'DIAG' = @{ 'TenantName' = 'n' }; 'TenantName' = ($cmdOutput | Where-Object{ $_ -match 'TenantName' }).Split(":")[1].trim(); 'Device Name' = ($cmdOutput | Where-Object{ $_ -match 'Device Name' }).Split(":")[1].trim(); 'AzureAdJoined' = ($cmdOutput | Where-Object{ $_ -match 'AzureAdJoined' }).Split(":")[1].trim(); 'EnterpriseJoined' = ($cmdOutput | Where-Object{ $_ -match 'EnterpriseJoined' }).Split(":")[1].trim(); 'DomainJoined' = ($cmdOutput | Where-Object{ $_ -match 'DomainJoined' }).Split(":")[1].trim(); 'Virtual Desktop' = ($cmdOutput | Where-Object{ $_ -match 'Virtual Desktop' }).Split(":")[1].trim() } }
+	try {	$cmdOutput = & 'C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe' show } # | findstr /C:"Agent Status" 
+	catch { }
 		# $stats.split()[-1] -eq 'Connected'
-		if ($cmdOutput)
-		{
+		if ($cmdOutput){
 			$AZStatus = [PSCustomObject]@{ 'DIAG' = @{ }; 'Tenant ID' = ($cmdOutput | Where-Object{ $_ -match 'Tenant ID' }).Split(":")[1].trim(); 'Resource Name' = ($cmdOutput | Where-Object{ $_ -match 'Resource Name' }).Split(":")[1].trim(); 'Agent Status' = ($cmdOutput | Where-Object{ $_ -match 'Agent Status' }).Split(":")[1].trim(); 'Agent Last Heartbeat' = ($cmdOutput | Where-Object{ $_ -match 'Agent Last Heartbeat' }).Split(":")[1].trim(); 'Agent Error Details' = ($cmdOutput | Where-Object{ $_ -match 'Agent Error Details' }).Split(":")[1].trim(); 'GC Service (gcarcservice)' = ($cmdOutput | Where-Object{ $_ -match 'gcarcservice' }).Split(":")[1].trim() }
 			if ($AZStatus.'Agent Status' -ne 'Connected') { $AZStatus.DIAG.Add('Agent Status', 'w'); $w += "<div>AZ: Warning: `t<i>Connection to Azure is not estableshed.</i></div>`r`n"; $HState = 'Unhealthy'  }
 			if (([math]::ceiling((New-TimeSpan -end (Get-Date) -Start ([DateTime]::ParseExact($AZStatus.'Agent Last Heartbeat', 'yyyy-MM-ddTHH', $null))).TotalHours)) -gt 2) { $AZStatus.DIAG.Add('Agent Last Heartbeat', 'w'); $w += "<div>AZ: Warning: `t<i>Azure Agent connection is delayed.</i></div>`r`n"; $HState = 'Unhealthy'  }
@@ -573,8 +569,7 @@ $AZS = { #AZureAD Join State : run remotely
 			if (![string]::IsNullOrEmpty($AZStatus.'Agent Error Details')) { $AZStatus.DIAG.Add('Agent Error Details', 'e'); $w += "<div>AZ: <b>Error:</b> `t<i>Error in Azure Agent.</i></div>`r`n"; $HState = 'Degraded' }
 			if ($AZStatus.'GC Service (gcarcservice)' -ne 'running') { $AZStatus.DIAG.Add('GC Service (gcarcservice)', 'e'); $w += "<div>AZ: <b>Error:</b> `t<i>Azure Agent Service is not running.</i></div>`r`n"; $HState = 'Degraded' }
 		}
-	}
-	catch { }
+	
 	if (!$AZStatus) { $w += "<div>AZ: Info: `t<i>The host is not assigned to any MS365 tenant.</i></div>`r`n" }
 	else { [void]$r.Add($AZStatus)}
 	[pscustomobject]@{'Warnings'=$w; 'report'=$r; 'HState'= $HState}
