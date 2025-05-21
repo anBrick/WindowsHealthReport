@@ -380,20 +380,19 @@ if ($Ignore){
 foreach ($ScriptDistributionPoint in $ScriptDistributionPoints){
 if ($ScriptDistributionPoint -match "^(https?:\/\/)") {
 	$UpdatesFile = $ENV:TEMP + '\' + $MyInvocation.myCommand.name
-	try {
-		Invoke-WebRequest -Uri $($ScriptDistributionPoint + $MyInvocation.myCommand.name) -UseDefaultCredentials -OutFile $UpdatesFile
-		Unblock-File $UpdatesFile
-		Copy-Item $UpdatesFile -Destination $($MyInvocation.MyCommand.Path) -Force;
-		Remove-Item $UpdatesFile -ea 0
-	}
-	catch {Write-Status -Status Error -Message "ERROR: Unable to install updates from $ScriptDistributionPoint, running as is."}
+	try {Invoke-WebRequest -Uri $($ScriptDistributionPoint + $MyInvocation.myCommand.name) -UseDefaultCredentials -OutFile $UpdatesFile}
+	catch {Write-Status -Status Error -Message "ERROR $_ : Unable to downlaod updates from $($ScriptDistributionPoint + $MyInvocation.myCommand.name), running as local version."}
+	Unblock-File $UpdatesFile
+	try {Copy-Item $UpdatesFile -Destination $($MyInvocation.MyCommand.Path) -Force}
+	catch {Write-Status -Status Error -Message "ERROR $_ : Unable to uplaod updates to $($MyInvocation.MyCommand.Path), update failed."}
+	Remove-Item $UpdatesFile -ea 0
 }
 else {
 	if ((Test-Path -PathType Leaf -LiteralPath ($ScriptDistributionPoint + $MyInvocation.myCommand.name)) -and ((Get-Item ($ScriptDistributionPoint + $MyInvocation.myCommand.name)).LastWriteTime.ticks -gt ((Get-Item $MyInvocation.MyCommand.Path).LastWriteTime.ticks)))
 	{
 		Write-Status -Status Information -Message ('The Distribution point has the newest version of the script. Starting Upgrade itself')
 		try { Copy-Item ($ScriptDistributionPoint + $MyInvocation.myCommand.name) -Destination $($MyInvocation.MyCommand.Path) -Force; }
-		catch { Write-Status -Status Error -Message  "ERROR: Impossible to upgrade the script from the $ScriptDistributionPoint, leaving it as is." }
+		catch { Write-Status -Status Error -Message  "ERROR $_ : Impossible to upgrade the script from the $ScriptDistributionPoint, leaving it as is." }
 	}
 }
 }
