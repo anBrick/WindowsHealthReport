@@ -345,7 +345,8 @@ Param(
 		'Error' {Write-Error $Message}
 	}
 	# Log source for Application Event Log
-	$source = "Get-ServerHealthReportScript"
+	$source = [IO.Path]::GetFileNameWithoutExtension($MyInvocation.PSCommandPath)
+	if ([string]::IsNullOrEmpty($source)) {$source = [IO.Path]::GetFileNameWithoutExtension($PSCommandPath)}
 	if (-not [System.Diagnostics.EventLog]::SourceExists($source)) {[System.Diagnostics.EventLog]::CreateEventSource($source, "Application")} #register EvtLog Source
 	Write-EventLog -LogName Application -Source $source -EntryType $Status -EventID 34343 -Message $(( '{0} Runtime message:: {1}') -f $MyInvocation.myCommand.name,$Message) -ea 0 
 }
@@ -399,7 +400,7 @@ else {
 		catch { Write-Status -Status Error -Message  "ERROR $_ : Impossible to upgrade the script from the $ScriptDistributionPoint, leaving it as is." }
 	}
 }
-}
+}#END SelfUpdate
 #Check Language mode locally and remotely
 if ($ExecutionContext.Sessionstate.LanguageMode -ne 'FullLanguage') {[void]$Problems.Add("<div>RUNTIME: Warning: `t<i>The Local POWERSHELL is not in FULL LANGUAGE MODE. The report will have limited details.</i></div>`r`n"); Write-Status -Status Warning -Message  "Warning: POWERSHELL is not in FULL LANGUAGE MODE. The report will have limited details."}
 $remotesesstion = New-PSSession -ComputerName $ServerName
