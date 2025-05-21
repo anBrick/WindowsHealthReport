@@ -344,7 +344,10 @@ Param(
 		'Warning' {Write-host $Message -foregroundColor yellow}
 		'Error' {Write-Error $Message}
 	}
-	Write-EventLog -LogName Application -Source "Userenv" -EntryType $Status -EventID 34343 -Message $(( '{0} Runtime message:: {1}') -f $MyInvocation.myCommand.name,$Message) -ea 0 
+	# Log source for Application Event Log
+	$source = "Get-ServerHealthReportScript"
+	if (-not [System.Diagnostics.EventLog]::SourceExists($source)) {[System.Diagnostics.EventLog]::CreateEventSource($source, "Application")} #register EvtLog Source
+	Write-EventLog -LogName Application -Source $source -EntryType $Status -EventID 34343 -Message $(( '{0} Runtime message:: {1}') -f $MyInvocation.myCommand.name,$Message) -ea 0 
 }
 function Color-HState {
 	[cmdletbinding()]
