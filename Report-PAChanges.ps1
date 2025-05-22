@@ -257,7 +257,7 @@ foreach ($dc in $DCNames) {
 
                         $ReportObj += [PSCustomObject]@{
                             Account   = $targetUser
-                            Group  = $group
+                            'Group membership'  = $group
                             DC     = $dc.Name
                             Time   = $time
 									 Action  = 'Password set'
