@@ -197,7 +197,7 @@ try {
 	$ADPrivilegedObjects = (Get-Acl $("AD:" + (Get-ADDomain).DistinguishedName)).Access.where({$_.AccessControlType -eq 'Allow' -and ($_.ActiveDirectoryRights -match 'GenericAll|WriteProperty|ExtendedRight')}) | Sort-Object IdentityReference -Unique | ForEach-Object { $_.IdentityReference.Value.Split('\')[1] }
 	
 	$global:ADPrivilegedGroups = $ADPrivilegedObjects.ForEach({ Get-ADObject -Filter "sAMAccountName -eq '$_'" | Where-Object {$_.ObjectClass -eq 'group'}})
-	$ADPPUA = $ADPrivilegedObjects.ForEach({(Get-ADObject -Filter "sAMAccountName -eq '$_'" | Where-Object {$_.ObjectClass -eq 'user'} | select Name).Name})
+	$ADPPUA = $ADPrivilegedObjects.ForEach({(Get-ADObject -Filter "sAMAccountName -eq '$_'" | Where-Object {$_.ObjectClass -eq 'user'} | Select-Object Name).Name})
 	# Get nested members of privileged groups
 	foreach ($group in $global:ADPrivilegedGroups) {
 	        $groupDN = $group.DistinguishedName
@@ -253,7 +253,7 @@ foreach ($dc in $DCNames) {
 
                     if ((Test-MonitoredAccount $adminUser) -or (Test-MonitoredAccount $targetUser)) {
                         $time = $event.TimeCreated.ToString("dd-MM-yyyy HH:mm:ss")
-                        $group = ([object[]](Get-ADPrincipalGroupMembership $targetUser)).Where({$_.GroupCategory -eq 'Security'}).Name -join "; "
+                        $group = ([object[]](Get-ADPrincipalGroupMembership $targetUser)).Where({$_.GroupCategory -eq 'Security'}).Name -join ", `n"
 
                         $ReportObj += [PSCustomObject]@{
                             Account   = $targetUser
@@ -304,7 +304,7 @@ if ($ReportObj.Count -gt 0) {
 			write-host "Preparing meail report message"
 			[string]$body = ""
 			#$body = '<table class=scope><tr><td><H3 style="font-size:17px; font-weight:normal; background-color:#66ccee; margin-top:3px; margin-bottom:1px; margin-left:4px; text-align:left;">' + $($ReportMessage -replace "`n","<br>") + "</H3></td></tr></table>"
-			$body += ($ReportObj | ConvertTo-Html  -Fragment -PreContent $('<table style= "width: 100%"><tr><td style="text-align: center; background-color: red; width: 5%; color: #ffd261; font-size:36pt; font-weight: bold">!</td><td style="background-color: #ffd261; color: RED; font-weight: bold">&nbsp;HOST: <font color=green>' + $($ServerName) + ' </font> | PUA Activity Alert:</td><td style="background-color: #ffd261; color: RED; font-weight: bold">&nbsp;Highly privileged activities have occurred in AD<br>' + $((Get-ADDomain).DistinguishedName)) -PostContent '</td></tr></table>') -replace "; ","<br>"
+			$body += ($ReportObj | ConvertTo-Html  -Fragment -PreContent $('<table style= "width: 100%"><tr><td style="text-align: center; background-color: red; width: 5%; color: #ffd261; font-size:36pt; font-weight: bold">!</td><td style="background-color: #ffd261; color: RED; font-weight: bold">&nbsp;HOST: <font color=green>' + $($ServerName) + ' </font> | PUA Activity Alert:</td><td style="background-color: #ffd261; color: RED; font-weight: bold">&nbsp;Highly privileged activities have occurred in AD<br>' + $((Get-ADDomain).DistinguishedName)) -PostContent '</td></tr></table>') -replace ", `n","<br>"
 			$body += '<div></div><!--End ReportBody--><div><br><center><i>' + $(Get-Date -Format "dd/MM/yyyy HH:mm:ss") + '</i><p style="font-size:8px;color:#7d9797">Script Version: 2025.05 | By: Vladislav Jandjuk | Feedback: jandjuk@arion.cz | Git: github.com/anBrick/WindowsHealthReport</p></center><br></div></body></html>'
 			# generate FROM address by server DNS name
 			if ($emailFrom -notmatch '^[A-Z0-9._%+-]+@(?:[A-Z0-9-]+\.)+[A-Z]{2,}$') {
