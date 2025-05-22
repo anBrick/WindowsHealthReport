@@ -199,7 +199,7 @@ try {
 	$global:ADPrivilegedGroups = $ADPrivilegedObjects.ForEach({ Get-ADObject -Filter "sAMAccountName -eq '$_'" | Where-Object {$_.ObjectClass -eq 'group'}})
 	$ADPPUA = $ADPrivilegedObjects.ForEach({(Get-ADObject -Filter "sAMAccountName -eq '$_'" | Where-Object {$_.ObjectClass -eq 'user'} | select Name).Name})
 	# Get nested members of privileged groups
-	foreach ($group in $ADPrivilegedGroups) {
+	foreach ($group in $global:ADPrivilegedGroups) {
 	        $groupDN = $group.DistinguishedName
 	        $nestedMembers = ([adsisearcher]"(&(ObjectCategory=Person)(ObjectClass=User)(memberOf:1.2.840.113556.1.4.1941:=$groupDN))").FindAll()
 	        $ADPPUA += $nestedMembers | ForEach-Object { $_.Properties["samaccountname"][0] }
@@ -253,17 +253,17 @@ foreach ($dc in $DCNames) {
 
                     if ((Test-MonitoredAccount $adminUser) -or (Test-MonitoredAccount $targetUser)) {
                         $time = $event.TimeCreated.ToString("dd-MM-yyyy HH:mm:ss")
-                        $group = ([object[]](Get-ADPrincipalGroupMembership $targetUser)).Where({$_.GroupCategory -eq 'Security'}).Name -join ','
+                        $group = ([object[]](Get-ADPrincipalGroupMembership $targetUser)).Where({$_.GroupCategory -eq 'Security'}).Name -join ", "
 
                         $ReportObj += [PSCustomObject]@{
-                            Admin  = $adminUser
-                            User   = $targetUser
-                            Group  = $group
+                            Account   = $targetUser
+                            Group  = $($group -replace ", ", "<br>")
                             DC     = $dc.Name
                             Time   = $time
-                            Action = 'Password set'
+									 Action  = 'Password set'
+									 'By Actor' = $adminUser
                         }
-                        $ReportMessage += "Administrator '$adminUser' made password reset on '$targetUser' at '$($dc.Name)' at $time`n"
+                        $ReportMessage += "Administrator '$adminUser' invoked password reset on '$targetUser' at '$($dc.Name)' at $time`n"
                     }
                 }
 
@@ -273,7 +273,7 @@ foreach ($dc in $DCNames) {
                     $adminUser = $event.Properties[6].Value   # SubjectUserName
                     $targetUser = $event.Properties[0].Value  # MemberName
 
-                    if ($ADPrivilegedGroups.Name -contains $groupName -and ((Test-MonitoredAccount $adminUser) -or (Test-MonitoredAccount $targetUser))) {
+                    if ($Glogal:ADPrivilegedGroups.Name -contains $groupName -and ((Test-MonitoredAccount $adminUser) -or (Test-MonitoredAccount $targetUser))) {
                         $time = $event.TimeCreated.ToString("dd-MM-yyyy HH:mm:ss")
                         $action = switch ($event.Id) {
                             {4728, 4732, 4756 -contains $_} { 'User was added to group' }
