@@ -304,20 +304,20 @@ function ConvertTo-HTMLStyle {
 		$TableHeader = $null
 		if (($InputObj -is [array]) -or ($InputObj -is [System.Collections.IDictionary])) {
 		$InputObj.foreach({
-		switch ($_.DIAG) {
-		'ERROR' { $HTMLOutput += ("`r`n<TR class=e>") }
-		'WARNING' {$HTMLOutput += ("`r`n<TR class=w>")}
-		'NORMAL' {$HTMLOutput += ("`r`n<TR class=n>")}
-		'UNKNOWN' {$HTMLOutput += ("`r`n<TR class=u>")}
+		switch -regex ($_.DIAG) {
+		'^E' {$HTMLOutput += ("`r`n<TR class=e>")}
+		'^W' {$HTMLOutput += ("`r`n<TR class=w>")}
+		'^N' {$HTMLOutput += ("`r`n<TR class=n>")}
+		'^U' {$HTMLOutput += ("`r`n<TR class=u>")}
 		default {$HTMLOutput += ("`r`n<TR class=u>")}}
 		$_.PSObject.Properties.where({$_.Name -ne 'DIAG'}).FOREACH({ $HTMLOutput += ("<TD class=" + $InputObj.Diag[$InputObj.Diag.Keys -eq $_.Name] + ">" + $([string]$_.Value) + "</TD>")})
 		$HTMLOutput += ("</TR>")
 		})} else {
-			switch ($InputObj.DIAG) {
-			'ERROR' { $HTMLOutput += ("`r`n<TR class=e>") }
-			'WARNING' {$HTMLOutput += ("`r`n<TR class=w>")}
-			'NORMAL' {$HTMLOutput += ("`r`n<TR class=n>")}
-			'UNKNOWN' {$HTMLOutput += ("`r`n<TR class=u>")}
+			switch -regex ($InputObj.DIAG) {
+			'^E' {$HTMLOutput += ("`r`n<TR class=e>")}
+			'^W' {$HTMLOutput += ("`r`n<TR class=w>")}
+			'^N' {$HTMLOutput += ("`r`n<TR class=n>")}
+			'^U' {$HTMLOutput += ("`r`n<TR class=u>")}
 			default {$HTMLOutput += ("`r`n<TR class=u>")}}
 			$InputObj.PSObject.Properties.where({ $_.Name -ne 'DIAG' }).FOREACH({
 					if ($InputObj.Diag) { $HTMLOutput += ("<TD class=" + $InputObj.Diag[$InputObj.Diag.Keys -eq $_.Name] + ">" + $([string]$_.Value) + "</TD>") }
@@ -789,25 +789,64 @@ $result
 }
 $rUSR = { #Get Local Users anomalies : run locally
 	param ($ServerName,$IgnoreList)
+	function Is-Admin	{
+		#test does the user hold the high privilege on local system
+		param (
+			[Parameter(Position = 0, ValueFromPipelineByPropertyName = $true)]
+			[string]$UserName
+		)
+		Add-Type -AssemblyName System.DirectoryServices.AccountManagement
+		$userprincipal = ([System.DirectoryServices.AccountManagement.UserPrincipal]) -as [type]
+		$up = $userprincipal::FindByIdentity([system.DirectoryServices.Accountmanagement.contextType]::Domain, [System.DirectoryServices.AccountManagement.IdentityType]::SamAccountName, $UserName)
+		if ($up)	{
+			try {
+				$ID = New-Object Security.Principal.WindowsIdentity -ArgumentList $up.SamAccountName
+				$ID.Claims.Value.Contains('S-1-5-32-544')
+			}
+			catch { $null }
+		}
+		else	{
+			try {
+				$up = $userprincipal::FindByIdentity([System.DirectoryServices.AccountManagement.ContextType]::Machine, [System.DirectoryServices.AccountManagement.IdentityType]::SamAccountName, $UserName)
+				$up.GetGroups().sid.Value.Contains('S-1-5-32-544')
+			}
+			catch { $null }
+		}
+	}
 	$w = @();[Collections.ArrayList]$r=@();$DIAG=@{}; $HState = 'Healthy'
 	#Get Local User list
 	#Account Disabled	Display Name	Account Name	Inactive Days	Password Expired In
 	#Name,Description,PasswordAge,PasswordExpired,Lastlogin
 	if ($ServerName -eq 'localhost') {$ServerName = $Env:Computername} #localhost bug on some systems
-		$computer = [ADSI]"WinNT://$ServerName"
-		$computer.Children | Where-Object {$_.SchemaClassName -eq 'user'} | Foreach-Object {
-			$groups = $_.Groups() | Foreach-Object {$_.GetType().InvokeMember("Name", 'GetProperty', $null, $_, $null)} 
-			$AccountDisabled = $false; if (($_.UserFlags[0] -band 2) -eq 2) {$AccountDisabled = $True}
-			if ($_.Name[0] -eq 'Administrator') {
-				$w += "<div>OS: Warning: `t<i>User Administrator was found.</i></div>`r`n"; $HState = 'Unhealthy' 
-				$adminSID = (New-Object System.Security.Principal.NTAccount($_.Name[0])).Translate([System.Security.Principal.SecurityIdentifier]).value
-				if (($adminSID -match '-500$') -and (!$AccountDisabled)) {$w += "<div>USR: <b>Error:</b> `t<i>The local Admin account name is ADMINISTRATOR and it is NOT DISABLED. This Account must be renamed or disabled.</i></div>`r`n"; $HState = 'Degraded'; $DIAG.Add('UserName', 'e')}
-				elseif (($adminSID -match '-500$') -and ($_.Name[0] -notmatch 'admin')) {$w += "<div>USR: Warning: `t<i>Abnormal Local Admin account found: $($_.Name[0]).</i></div>`r`n"; $HState = 'Unhealthy' ; $DIAG.Add('UserName', 'w')}
-				elseif ($adminSID -match '-500$') {$LocalAdminCount +=1}
-    		[void]$r.Add($($_ | Select-Object @{n='DIAG';e={$DIAG}}, @{n='Computername';e={$ServerName}},@{n='Account Active';e={-not $AccountDisabled}},@{n='UserName';e={$_.Name[0]}},@{n='Description';e={$_.Description[0]}},@{n='Last Login';e={If ($_.LastLogin[0] -is [DateTime]) {$_.LastLogin[0]} Else { 'Never logged on' }}},@{n='PasswordAge';e={[Math]::Round($_.PasswordAge[0] / 86400)}},@{n='Groups';e={$groups -join '::'}}))
+	$computer = [ADSI]"WinNT://$ServerName"
+	$LocalAdminCount = 0
+	$computer.Children | Where-Object { $_.SchemaClassName -eq 'user' } | Foreach-Object {
+		$groups = $_.Groups() | Foreach-Object {$_.GetType().InvokeMember("Name", 'GetProperty', $null, $_, $null)}
+		$AccountDisabled = $false; if (($_.UserFlags[0] -band 2) -eq 2) { $AccountDisabled = $True }
+		$accountSID = (New-Object System.Security.Principal.NTAccount($_.Name[0])).Translate([System.Security.Principal.SecurityIdentifier]).value
+		$IsPUA = Is-Admin -UserName $_.Name[0]
+		$cUser = $_ #temporary var to use in switch statement
+		switch -regex ($_.Name[0]) {
+			'Administrator' {
+				$w += "<div>USR: Warning: `t<i>User Administrator was found.</i></div>`r`n"; if ($HState -ne 'Degraded') {$HState = 'Unhealthy'}
+				if (($accountSID -match '-500$') -and (!$AccountDisabled)) { $w += "<div>USR: <b>Error:</b> `t<i>The local Admin account name is ADMINISTRATOR and it is NOT DISABLED. This Account must be renamed or disabled.</i></div>`r`n"; $HState = 'Degraded'; $DIAG = 'Error' }
+				[void]$r.Add($($cUser | Select-Object @{ n = 'DIAG'; e = { $DIAG } }, @{ n = 'Computername'; e = { $ServerName } }, @{ n = 'Account Active'; e = { -not $AccountDisabled } }, @{ n = 'UserName'; e = { $cUser.Name[0] } }, @{ n = 'Description'; e = { $cUser.Description[0] } }, @{ n = 'Last Login'; e = { If ($cUser.LastLogin[0] -is [DateTime]) { $cUser.LastLogin[0] } Else { 'Never logged on' } } }, @{ n = 'PasswordAge'; e = { [Math]::Round($cUser.PasswordAge[0] / 86400) } }, @{ n = 'Groups'; e = { $groups -join '::' } }))
+				}
+			'Guest' {
+				if (($accountSID -match '-501$') -and (!$AccountDisabled)){
+					$w += "<div>USR: <b>Error:</b> `t<i>The local Guest account name is GUEST and it is NOT DISABLED. The GUEST Account must be disabled.</i></div>`r`n"; $HState = 'Degraded'; $DIAG = 'Error'; $w += "<div>USR: Error: `t<i>User Guest is Enabled.</i></div>`r`n";
+					[void]$r.Add($($cUser | Select-Object @{ n = 'DIAG'; e = { $DIAG } }, @{ n = 'Computername'; e = { $ServerName } }, @{ n = 'Account Active'; e = { -not $AccountDisabled } }, @{ n = 'UserName'; e = { $cUser.Name[0] } }, @{ n = 'Description'; e = { $cUser.Description[0] } }, @{ n = 'Last Login'; e = { If ($cUser.LastLogin[0] -is [DateTime]) { $cUser.LastLogin[0] } Else { 'Never logged on' } } }, @{ n = 'PasswordAge'; e = { [Math]::Round($cUser.PasswordAge[0] / 86400) } }, @{ n = 'Groups'; e = { $groups -join '::' } }))
+				}
 			}
-		}
-	if ($LocalAdminCount -gt 2) {$w += "<div>USR: Warning: `t<i>Too much high priviledged account found.</i></div>`r`n"; $HState = 'Unhealthy' } 
+			default {
+				if ($IsPUA) {
+					if ($cUser.Name[0] -notmatch 'admin') { $w += "<div>USR: Warning: `t<i>Abnormal Admin account found: $($cUser.Name[0]).</i></div>`r`n"}
+					$LocalAdminCount += 1; $DIAG = 'Warning'; if ($HState -ne 'Degraded') {$HState = 'Unhealthy'}
+					[void]$r.Add($($cUser | Select-Object @{ n = 'DIAG'; e = { $DIAG } }, @{ n = 'Computername'; e = { $ServerName } }, @{ n = 'Account Active'; e = { -not $AccountDisabled } }, @{ n = 'UserName'; e = { $cUser.Name[0] } }, @{ n = 'Description'; e = { $cUser.Description[0] } }, @{ n = 'Last Login'; e = { If ($cUser.LastLogin[0] -is [DateTime]) { $cUser.LastLogin[0] } Else { 'Never logged on' } } }, @{ n = 'PasswordAge'; e = { [Math]::Round($cUser.PasswordAge[0] / 86400) } }, @{ n = 'Groups'; e = { $groups -join '::' } }))}
+					}
+				}
+			} #foreach
+	if ($LocalAdminCount -gt 2) {$w += "<div>USR: Warning: `t<i>Too much high priviledged account found.</i></div>`r`n"; if ($HState -ne 'Degraded') {$HState = 'Unhealthy'} } 
 	[pscustomobject]@{'Warnings'=$w; 'report'=$r; 'HState'= $HState}
 }
 $CRT = { #Certificates Audit : run remotely
@@ -1095,7 +1134,7 @@ if ($UnsigProcs.report) { [void]$ReportHTMLArray.Add($($UnsigProcs.report | Conv
 $StrangeServices.Warnings.foreach({[void]$Problems.Add($_)})
 if ($StrangeServices.report) { [void]$ReportHTMLArray.Add($($StrangeServices.report | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Strange Services</H3></td></tr></table>")) }
 $LocalUsers.Warnings.foreach({[void]$Problems.Add($_)})
-if ($LocalUsers.report) { [void]$ReportHTMLArray.Add($($LocalUsers.report | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | User Accounts</H3></td></tr></table>").Replace("::", "<br/>")) }
+if ($LocalUsers.report) { [void]$ReportHTMLArray.Add($($LocalUsers.report | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Unsettling User Accounts</H3></td></tr></table>").Replace("::", "<br/>")) }
 $Certificates.Warnings.foreach({[void]$Problems.Add($_)})
 if ($Certificates.report) { [void]$ReportHTMLArray.Add($($Certificates.report | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Certificates</H3></td></tr></table>").Replace("::", "<br/>")) }
 $Shares.Warnings.foreach({[void]$Problems.Add($_)})
