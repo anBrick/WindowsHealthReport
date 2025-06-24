@@ -183,7 +183,7 @@ $Header = @"
 $Footer = @"
     <div></div><!--End ReportBody--><div>
     <br><center><i>Source script: $($MyInvocation.MyCommand.Path)<br>Report file was saved to $($ReportFilePath)</i></p></center>
-    <br><center><i>$(Get-Date -Format "dd/MM/yyyy HH:mm:ss")</i><p style="" font-size:8px;color:#7d9797"">Script Version: 2025.04 | By: Vladislav Jandjuk | Feedback: jandjuk@arion.cz | Git: github.com/anBrick/WindowsHealthReport</p></center>
+    <br><center><i>$(Get-Date -Format "dd/MM/yyyy HH:mm:ss")</i><p style="" font-size:8px;color:#7d9797"">Script Version: 2025.06 | By: Vladislav Jandjuk | Feedback: jandjuk@arion.cz | Git: github.com/anBrick/WindowsHealthReport</p></center>
     <br></div></body></html>
 "@
 #Other vasr and constants - change it if you know what you do
