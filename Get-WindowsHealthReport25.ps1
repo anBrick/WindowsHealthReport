@@ -230,36 +230,141 @@ param(
     }else {$result = $Null}
     $result
 } #function
-function Get-PendingRebootState {
-param(
-	[string]$ServerName = $env:COMPUTERNAME
-)
-$tests = @(
-        { Get-RemoteRegistryValue -ServerName $ServerName -Key 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Component Based Servicing\\RebootPending' }
-        { Get-RemoteRegistryValue -ServerName $ServerName -Key 'Software\\Microsoft\\Windows\\CurrentVersion\\Component Based Servicing\\RebootInProgress' }
-        { Get-RemoteRegistryValue -ServerName $ServerName -Key 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\WindowsUpdate\\Auto Update\\RebootRequired' }
-        { Get-RemoteRegistryValue -ServerName $ServerName -Key 'Software\\Microsoft\\Windows\\CurrentVersion\\Component Based Servicing\\PackagesPending' }
-        { Get-RemoteRegistryValue -ServerName $ServerName -Key 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\WindowsUpdate\\Auto Update\\PostRebootReporting' }
-        { Get-RemoteRegistryValue -ServerName $ServerName -Key 'SYSTEM\\CurrentControlSet\\Control\\Session Manager' -Value 'PendingFileRenameOperations' }
-        { Get-RemoteRegistryValue -ServerName $ServerName -Key 'SYSTEM\\CurrentControlSet\\Control\\Session Manager' -Value 'PendingFileRenameOperations2' }
-        { Get-RemoteRegistryValue -ServerName $ServerName -Key 'SOFTWARE\\Microsoft\\Updates' -Value 'UpdateExeVolatile'}
-        { Get-RemoteRegistryValue -ServerName $ServerName -Key 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce' -Value 'DVDRebootSignal' }
-        { Get-RemoteRegistryValue -ServerName $ServerName -Key 'SOFTWARE\\Microsoft\\ServerManager\\CurrentRebootAttemps' }
-        { Get-RemoteRegistryValue -ServerName $ServerName -Key 'SYSTEM\\CurrentControlSet\\Services\\Netlogon' -Value 'JoinDomain' }
-        { Get-RemoteRegistryValue -ServerName $ServerName -Key 'SYSTEM\\CurrentControlSet\\Services\\Netlogon' -Value 'AvoidSpnSet' }
-        { 
-				$acn = Get-RemoteRegistryValue -ServerName $ServerName -key 'SYSTEM\\CurrentControlSet\\Control\\ComputerName\\ActiveComputerName' -Value 'ComputerName'
-				$ccn = Get-RemoteRegistryValue -ServerName $ServerName -Key 'SYSTEM\\CurrentControlSet\\Control\\ComputerName\\ComputerName' -Value 'ComputerName'
-				if ($acn -and $ccn) {($acn -ne $ccn)} else {$Null}   
-        }
-        {
-            # Added test to check first if key exists
-            $pnd = Get-RemoteRegistryValue -ServerName $ServerName -Key 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\WindowsUpdate\\Services\\Pending'
-			if ($pnd -and ($pnd.ValueCount -gt 0))  { $true } else {$Null}
-        }
-    )
-foreach ($test in $tests) { if (& $test) { $true; break } }
+function Get-PendingRebootState
+{
+    <#
+    .SYNOPSIS
+    Determines whether a remote (or local) Windows machine is pending a reboot, using registry flags.
+
+    .DESCRIPTION
+    Queries a series of well-known registry keys and values that Windows (and ConfigMgr) set
+    when a reboot is required. Stops as soon as any one indicator is found.
+
+    .PARAMETER ServerName
+    The target computer (defaults to the local machine).
+
+    .OUTPUTS
+    [bool]  Returns $true if any reboot-pending flag is detected; otherwise $false.
+
+    .EXAMPLE
+    Get-PendingRebootState -ServerName DC01 -Verbose
+    #>
+	[CmdletBinding()]
+	param (
+		[Parameter(ValueFromPipelineByPropertyName)]
+		[ValidateNotNullOrEmpty()]
+		[string]$ServerName = $env:COMPUTERNAME
+	)
+	
+	# Define all registry checks in one place:
+	$tests = @(
+		@{ Path = 'SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing'; Name = 'RebootPending' }
+		@{ Path = 'SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing'; Name = 'RebootInProgress' }
+		@{ Path = 'SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update'; Name = 'RebootRequired' }
+		@{ Path = 'SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing'; Name = 'PackagesPending' }
+		@{ Path = 'SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update'; Name = 'PostRebootReporting' }
+		@{ Path = 'SYSTEM\CurrentControlSet\Control\Session Manager'; Name = 'PendingFileRenameOperations' }
+		@{ Path = 'SYSTEM\CurrentControlSet\Control\Session Manager'; Name = 'PendingFileRenameOperations2' }
+		@{ Path = 'SOFTWARE\Microsoft\Updates'; Name = 'UpdateExeVolatile' }
+		@{ Path = 'SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce'; Name = 'DVDRebootSignal' }
+		@{ Path = 'SOFTWARE\Microsoft\ServerManager\CurrentRebootAttemps'; Name = $null }
+		@{ Path = 'SYSTEM\CurrentControlSet\Services\Netlogon'; Name = 'JoinDomain' }
+		@{ Path = 'SYSTEM\CurrentControlSet\Services\Netlogon'; Name = 'AvoidSpnSet' }
+		# ConfigMgr client flag
+		@{ Path = 'SOFTWARE\Microsoft\CCMSetup'; Name = 'RebootRequested' }
+		# Feature-On-Demand / DISM
+		@{ Path = 'SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\AdvancedInstall'; Name = 'RebootPending' }
+		# Device migration
+		@{ Path = 'SYSTEM\CurrentControlSet\Control\DeviceMigration'; Name = 'PendingDeviceMigration' }
+		
+		# Custom script: Active vs. Current ComputerName mismatch
+		@{
+			Script = {
+				try
+				{
+					$acn = Get-RemoteRegistryValue -ServerName $ServerName `
+															 -Key 'SYSTEM\CurrentControlSet\Control\ComputerName\ActiveComputerName' `
+															 -Value 'ComputerName'
+					$ccn = Get-RemoteRegistryValue -ServerName $ServerName `
+															 -Key 'SYSTEM\CurrentControlSet\Control\ComputerName\ComputerName' `
+															 -Value 'ComputerName'
+					return ($acn -and $ccn -and ($acn -ne $ccn))
+				}
+				catch
+				{
+					Write-Verbose "ComputerName mismatch check failed: $_"
+					return $false
+				}
+			}
+		}
+		
+		# Custom script: Windows Update Services\Pending has >0 values
+		@{
+			Script = {
+				try
+				{
+					$pnd = Get-RemoteRegistryValue -ServerName $ServerName `
+															 -Key 'SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Services\Pending'
+					return ($pnd -and $pnd.ValueCount -gt 0)
+				}
+				catch
+				{
+					Write-Verbose "Pending services check failed: $_"
+					return $false
+				}
+			}
+		}
+	)
+	
+	foreach ($test in $tests)
+	{
+		if ($test.Script)
+		{
+			if (& $test.Script)
+			{
+				Write-Verbose 'Reboot-pending indicator found by script test.'
+				return $true
+			}
+		}
+		else
+		{
+			try
+			{
+				# Does the key exist?
+				$keyObj = Get-RemoteRegistryValue -ServerName $ServerName -Key $test.Path -ErrorAction Stop
+				if ($keyObj)
+				{
+					if ($test.Name)
+					{
+						$val = Get-RemoteRegistryValue `
+																 -ServerName $ServerName `
+																 -Key $test.Path `
+																 -Value $test.Name `
+																 -ErrorAction Stop
+						if ($null -ne $val)
+						{
+							Write-Verbose "Found '$($test.Name)' under '$($test.Path)'."
+							return $true
+						}
+					}
+					else
+					{
+						Write-Verbose "Found key '$($test.Path)'."
+						return $true
+					}
+				}
+			}
+			catch
+			{
+				Write-Verbose "Registry test failed for '$($test.Path)\$($test.Name)': $_"
+			}
+		}
+	}
+	
+	Write-Verbose 'No reboot-pending indicators detected.'
+	return $false
 }
+
 function Detect-WindowsAVInstalled { #Detect AV intalled and get basic info
 	param ($ServerName)
 	$w = @();[Collections.ArrayList]$r=@();$DIAG=@{}
