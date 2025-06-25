@@ -365,34 +365,61 @@ function Get-PendingRebootState
 	return $false
 }
 
-function Detect-WindowsAVInstalled { #Detect AV intalled and get basic info
-	param ($ServerName)
-	$w = @();[Collections.ArrayList]$r=@();$DIAG=@{}
-	if ((get-wmiobject Win32_ComputerSystem -ComputerName $ServerName).DomainRole -lt 2) { #Client OS
-		$AVInstalled = [object[]](Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntivirusProduct -ComputerName $ServerName) #Check does any AV SW installed
-		if ($AVInstalled) { #AV installd, getting basic info
-			foreach ($item in $AVInstalled) {
-            $hx = '0x{0:x}' -f $item.ProductState; $mid = $hx.Substring(3, 2); $end = $hx.Substring(5)
-            if ($mid -match "00|01") { $Enabled = $False; $w += "<div>WAV: Warning: `t<i>$ServerName has Antivirus $($item.Displayname) disabled.</i></div>`r`n" } else { $Enabled = $True }
-            if ($end -eq "00") { $UpToDate = $True } else { $UpToDate = $False; $w += "<div>WAV: Warning: `t<i>$ServerName has Antivirus $($item.Displayname) out of date.</i></div>`r`n"  }
-				#Collecting results
-            [void]$r.Add($($item | Select-Object @{Name='Antivirus Installed'; Expression = { $true} }, Displayname, ProductState, @{Name = "Enabled"; Expression = { $Enabled } }, @{Name = "UpToDate"; Expression = { $UptoDate } }, @{Name = "Path"; Expression = { $_.pathToSignedProductExe } }, Timestamp))
+function Detect-WindowsAVInstalled {
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
+		[ValidateNotNullOrEmpty()]
+		[string]$ServerName
+	)
+	
+	begin { $W = [System.Collections.Generic.List[string]]::new(); [Collections.ArrayList]$r = @(); $DIAG = @{ }}
+	process {
+		try {
+			$sys = Get-CimInstance -ClassName Win32_ComputerSystem -ComputerName $ServerName -ErrorAction Stop
+			$isServer = $sys.DomainRole -ge 2
+		}
+		catch {
+			$W.Add("<div>WAV: Error: `t<i>Unable to query system info on $ServerName : $_</i></div>`r`n")
+			return [pscustomobject]@{ 'Warnings' = $W; 'Report' = $r }
+		}
+		if (-not $isServer) {
+			try { $avProducts = [object[]](Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntivirusProduct -ComputerName $ServerName -ErrorAction Stop) }
+			catch {
+				$W.Add("<div>WAV: Error: `t<i>Unable to query antivirus info on $ServerName : $_</i></div>`r`n")
+				return [pscustomobject]@{ 'Warnings' = $W; 'Report' = $r }
 			}
-		} #if
-		else { #AV SW Not Detected
-			$w += "<div>WAV: Warning: `t<i>$ServerName has no Antivirus installed.</i></div>`r`n"
+			
+			if ($avProducts) {
+				foreach ($product in $avProducts) {
+					$state = [int]$product.ProductState
+					$enabled = ($state -band 0x10) -ne 0
+					$upToDate = ($state -band 0x100) -eq 0
+					
+					if (-not $Enabled) { $W.Add("<div>WAV: Warning: `t<i>$ServerName has Antivirus $($product.DisplayName) disabled.</i></div>`r`n") }
+					if (-not $upToDate) { $W.Add("<div>WAV: Warning: `t<i>$ServerName has Antivirus $($product.DisplayName) out of date.</i></div>`r`n") }
+					
+					[void]$r.Add($($product | Select-Object @{ Name = 'Antivirus Installed'; Expression = { $true } }, DisplayName, ProductState, @{ Name = "Enabled"; Expression = { $Enabled } }, @{ Name = "UpToDate"; Expression = { $upToDate } }, @{ Name = "Path"; Expression = { $_.pathToSignedProductExe } }, Timestamp))
+				} #foreach
+			}
+			else { $Enabled = $False; $W.Add("<div>WAV: Warning: `t<i>$ServerName has no Antivirus installed.</i></div>`r`n") }
 		}
-	}
-	else { #Server OS
-		$WinDefender = Get-WindowsFeature -ComputerName $ServerName | Where-Object {$_.InstallState -eq 'Installed' -and $_.DisplayName -match 'Defender'}
-				#Collecting results
-      if ($WinDefender) {[void]$r.Add([PSCustomObject]@{'Antivirus Installed'=$true; DisplayName='Windows Defender Antivirus'})}
-		else { $Enabled = $False; $w += "<div>WAV: Warning: `t<i>Windows Defender AV not installed.</i></div>`r`n"
-		#TODO: try to detect other AV installed
+		else {
+			#server OS
+			try { $defender = Get-WindowsFeature -ComputerName $ServerName -Name "Windows-Defender-Features" -ErrorAction Stop }
+			catch	{
+				$W.Add("<div>WAV: Error: `t<i>Unable to query Windows Defender state on $ServerName : $_</i></div>`r`n")
+				return [pscustomobject]@{ 'Warnings' = $W; 'Report' = $r }
+			}
+			
+			if ($defender -and $defender.Installed) { $Enabled = $true; [void]$r.Add([PSCustomObject]@{ 'Antivirus Installed' = $true; DisplayName = 'Windows Defender Antivirus' }) }
+				else { $Enabled = $False; $W.Add("<div>WAV: Warning: `t<i>Windows Defender AV not installed.</i></div>`r`n") }
+			}
+			
+			[pscustomobject]@{ 'Warnings' = $W; 'Report' = $r }
 		}
-	}
-	[pscustomobject]@{'Warnings'=$w; 'report'=$r}
-} 
+}
+	
 function ConvertTo-HTMLStyle {
 	[cmdletbinding()]
 	param (
