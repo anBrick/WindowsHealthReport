@@ -1020,17 +1020,17 @@ $rWDf = { #Get WindowsDefender AV config : run remotely
 	param ($ServerName,$IgnoreList)
 	$w = @();[Collections.ArrayList]$r=@();$DIAG=@{}; $HState = 'Healthy';
 		$WAVStatus = Get-MpComputerStatus | Select-Object -Property AMRunningMode, AMServiceEnabled, ComputerState, DefenderSignaturesOutOfDate, IsTamperProtected, RealTimeProtectionEnabled
-	if (!$WAVStatus) { $w += "<div>WAV: Warning: `t<i>Unable to get Windows Defender configuration.</i></div>`r`n"; $DIAG.Add('WAVStatus', 'e'); $HState = 'Unknown' }
-	elseif ($WAVStatus.AMRunningMode -ne 'Normal') { $w += "<div>WAV: <b>Error:</b> `t<i>Windows Defender degraded.</i></div>`r`n"; $HState = 'Degraded'; $WAVStatus.psobject.properties.Add([psnoteproperty]::new('DIAG', @{ 'AMRunningMode'='w' })) }
-	elseif (!$WAVStatus.AMServiceEnabled) { $w += "<div>WAV: <b>Error:</b> `t<i>Windows Defender service is not enabled.</i></div>`r`n"; $HState = 'Degraded'; $WAVStatus.psobject.properties.Add([psnoteproperty]::new('DIAG', @{ 'AMServiceEnabled'='e' })) }
-	elseif ($WAVStatus.DefenderSignaturesOutOfDate) { $w += "<div>WAV: Warning: `t<i>Windows Defender signatures is outdated.</i></div>`r`n"; $HState = 'Unhealthy' ; $WAVStatus.psobject.properties.Add([psnoteproperty]::new('DIAG', @{ 'DefenderSignaturesOutOfDate'='w' }))}
-		$WAVExclusions = Get-MpPreference | Select-Object -Property Exclusion*
+	if (!$WAVStatus) { $w += "<div>WAV: Warning: `t<i>Unable to get Windows Defender configuration.</i></div>`r`n"; $WAVStatus = New-Object PSObject;  $WAVStatus.psobject.properties.Add([psnoteproperty]::new('DIAG', @{ 'WAVStatus' = 'e' })); $HState = 'Unknown' }
+	elseif ($WAVStatus.AMRunningMode -ne 'Normal') { $w += "<div>WAV: <b>Error:</b> `t<i>Windows Defender degraded.</i></div>`r`n"; $HState = 'Degraded'; $WAVStatus.psobject.properties.Add([psnoteproperty]::new('DIAG', @{ 'AMRunningMode' = 'w' })) }
+	elseif (!$WAVStatus.AMServiceEnabled) { $w += "<div>WAV: <b>Error:</b> `t<i>Windows Defender service is not enabled.</i></div>`r`n"; $HState = 'Degraded'; $WAVStatus.psobject.properties.Add([psnoteproperty]::new('DIAG', @{ 'AMServiceEnabled' = 'e' })) }
+	elseif ($WAVStatus.DefenderSignaturesOutOfDate) { $w += "<div>WAV: Warning: `t<i>Windows Defender signatures are outdated.</i></div>`r`n"; $HState = 'Unhealthy'; $WAVStatus.psobject.properties.Add([psnoteproperty]::new('DIAG', @{ 'DefenderSignaturesOutOfDate' = 'w' })) }
+	$WAVExclusions = Get-MpPreference | Select-Object -Property Exclusion*
 		foreach ($Property in $WAVExclusions.PSObject.Properties) {
 			$Property.Value.foreach({if ($_ -match '^[a-zA-Z]+:\\$') {$w += "<div>WAV: Warning: `t<i>AV exclusion contains some root folder(s).</i></div>`r`n"; $HState = 'Unhealthy' ; $WAVStatus.psobject.properties.Add([psnoteproperty]::new('DIAG',@{ $Property.Value = 'w' }))}})
 			$Property.Value = ($Property.Value) -join "`n<br>"
 			$WAVStatus.psobject.properties.Add([psnoteproperty]::new($Property.Name,$Property.Value))
 		}
-		if (($WAVStatus.DIAG.count -gt 0) -and $WAVStatus) {[void]$r.Add($WAVStatus)}
+	if ($WAVStatus) {[void]$r.Add($WAVStatus)}
 	[pscustomobject]@{'Warnings'=$w; 'report'=$r; 'HState'= $HState}
 }
 $rFWC = { #Get WFW status : run remotely
