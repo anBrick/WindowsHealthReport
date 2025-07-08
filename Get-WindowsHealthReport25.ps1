@@ -183,7 +183,7 @@ $Header = @"
 $Footer = @"
     <div></div><!--End ReportBody--><div>
     <br><center><i>Source script: $($MyInvocation.MyCommand.Path)<br>Report file was saved to $($ReportFilePath)</i></p></center>
-    <br><center><i>$(Get-Date -Format "dd/MM/yyyy HH:mm:ss")</i><p style="" font-size:8px;color:#7d9797"">Script Version: 2025.06 | By: Vladislav Jandjuk | Feedback: jandjuk@arion.cz | Git: github.com/anBrick/WindowsHealthReport</p></center>
+    <br><center><i>$(Get-Date -Format "dd/MM/yyyy HH:mm:ss")</i><p style="" font-size:8px;color:#7d9797"">Script Version: 2025.07 | By: Vladislav Jandjuk | Feedback: jandjuk@arion.cz | Git: github.com/anBrick/WindowsHealthReport</p></center>
     <br></div></body></html>
 "@
 #Other vasr and constants - change it if you know what you do
@@ -365,7 +365,7 @@ function Get-PendingRebootState
 	return $false
 }
 
-function Detect-WindowsAVInstalled {
+function Detect-WindowsAVInstalled{
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
@@ -373,25 +373,32 @@ function Detect-WindowsAVInstalled {
 		[string]$ServerName
 	)
 	
-	begin { $W = [System.Collections.Generic.List[string]]::new(); [Collections.ArrayList]$r = @(); $DIAG = @{ }}
-	process {
-		try {
+	begin { $W = [System.Collections.Generic.List[string]]::new(); [Collections.ArrayList]$r = @(); $DIAG = @{ } }
+	process
+	{
+		try
+		{
 			$sys = Get-CimInstance -ClassName Win32_ComputerSystem -ComputerName $ServerName -ErrorAction Stop
 			$isServer = $sys.DomainRole -ge 2
 		}
-		catch {
+		catch
+		{
 			$W.Add("<div>WAV: Error: `t<i>Unable to query system info on $ServerName : $_</i></div>`r`n")
 			return [pscustomobject]@{ 'Warnings' = $W; 'Report' = $r }
 		}
-		if (-not $isServer) {
+		if (-not $isServer)
+		{
 			try { $avProducts = [object[]](Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntivirusProduct -ComputerName $ServerName -ErrorAction Stop) }
-			catch {
+			catch
+			{
 				$W.Add("<div>WAV: Error: `t<i>Unable to query antivirus info on $ServerName : $_</i></div>`r`n")
 				return [pscustomobject]@{ 'Warnings' = $W; 'Report' = $r }
 			}
 			
-			if ($avProducts) {
-				foreach ($product in $avProducts) {
+			if ($avProducts)
+			{
+				foreach ($product in $avProducts)
+				{
 					$state = [int]$product.ProductState
 					$enabled = ($state -band 0x10) -ne 0
 					$upToDate = ($state -band 0x100) -eq 0
@@ -404,22 +411,24 @@ function Detect-WindowsAVInstalled {
 			}
 			else { $Enabled = $False; $W.Add("<div>WAV: Warning: `t<i>$ServerName has no Antivirus installed.</i></div>`r`n") }
 		}
-		else {
+		else
+		{
 			#server OS
-			try { $defender = Get-WindowsFeature -ComputerName $ServerName -Name "Windows-Defender-Features" -ErrorAction Stop }
-			catch	{
+			try { $defender = Get-WindowsFeature -ComputerName $ServerName -ErrorAction Stop | Where-Object { $_.Name -match "Defender" } }
+			catch
+			{
 				$W.Add("<div>WAV: Error: `t<i>Unable to query Windows Defender state on $ServerName : $_</i></div>`r`n")
 				return [pscustomobject]@{ 'Warnings' = $W; 'Report' = $r }
 			}
 			
-			if ($defender -and $defender.Installed) { $Enabled = $true; [void]$r.Add([PSCustomObject]@{ 'Antivirus Installed' = $true; DisplayName = 'Windows Defender Antivirus' }) }
-				else { $Enabled = $False; $W.Add("<div>WAV: Warning: `t<i>Windows Defender AV not installed.</i></div>`r`n") }
-			}
-			
-			[pscustomobject]@{ 'Warnings' = $W; 'Report' = $r }
+			if ($defender -and $defender.Installed) { $Enabled = $true; [void]$r.Add([PSCustomObject]@{ 'Antivirus Installed' = $true; DisplayName = $Defender.DisplayName }) }
+			else { $Enabled = $False; $W.Add("<div>WAV: Warning: `t<i>$($Defender.DisplayName) AV not installed.</i></div>`r`n") }
 		}
+		
+		[pscustomobject]@{ 'Warnings' = $W; 'Report' = $r }
+	}
 }
-	
+
 function ConvertTo-HTMLStyle {
 	[cmdletbinding()]
 	param (
