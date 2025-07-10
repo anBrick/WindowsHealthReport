@@ -1155,14 +1155,14 @@ if ($RunTest -contains 'WHW') {
 if ($RunTest -contains 'WAV') {
 	Write-Status -Status Information -Message "Starting job Windows Antivirus State for $($ServerName) at $(Get-Date)"
 	$AVinfo = Detect-WindowsAVInstalled -ServerName $ServerName
-	if ($AVinfo.report.DisplayName -match 'Windows Defender') {
+	if (($AVinfo.report.DisplayName -match 'Windows') -or ($AVinfo.report.DisplayName -match 'Microsoft')) {
 		if (($ServerName -eq "localhost") -or ($ServerName -eq "127.0.0.1"))
 		{
 			Start-Job -scriptblock $rWDf -ArgumentList $ServerName -Name "WDf" | Select-Object PSBeginTime, location, id, name, State, Error | Format-Table -AutoSize
 		}
 		else { Invoke-Command -computername $ServerName -scriptblock $rWDf -ArgumentList $ServerName -JobName "WDf" -AsJob | Select-Object PSBeginTime, location, id, name, State, Error | Format-Table -AutoSize }
 	}
-	elseif ($Null -eq $AVinfo.results)
+	elseif ($Null -eq $AVinfo.report)
 	{
 		# No Ativirus
 		[void]$Problems.Add("<div>WAV: Warning: `t<i>Probably no Antivirus software installed.</i></div>`r`n")
