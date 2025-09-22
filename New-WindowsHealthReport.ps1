@@ -183,7 +183,7 @@ $Header = @"
 $Footer = @"
     <div></div><!--End ReportBody--><div>
     <br><center><i>Source script: $($MyInvocation.MyCommand.Path)<br>Report file was saved to $($ReportFilePath)</i></p></center>
-    <br><center><i>$(Get-Date -Format "dd/MM/yyyy HH:mm:ss")</i><p style="" font-size:8px;color:#7d9797"">Script Version: 2025.07 | By: Vladislav Jandjuk | Feedback: jandjuk@arion.cz | Git: github.com/anBrick/WindowsHealthReport</p></center>
+    <br><center><i>$(Get-Date -Format "dd/MM/yyyy HH:mm:ss")</i><p style="" font-size:8px;color:#7d9797"">Script Version: 2025.09 | By: Vladislav Jandjuk | Feedback: jandjuk@o30.cz | Git: github.com/anBrick/WindowsHealthReport</p></center>
     <br></div></body></html>
 "@
 #Other vasr and constants - change it if you know what you do
@@ -594,6 +594,31 @@ if ($install) {
 	$tasktrigger = New-ScheduledTaskTrigger -Daily -At 6am
 	Register-ScheduledTask -TaskName "Send-ServerHealthMailReport($($ServerName))" -Action $reporttask -Trigger $tasktrigger -Description "Daily send server health report by email to $($EmailTo) for $($ServerName)" -User "SYSTEM" -RunLevel Highest -Force
 }
+#############################################################################
+#REGION TEMPORARY CHANGES:: replace target email address for report task if it is jandjuk@arion.cz to beta@arion.cz
+# Old and new email addresses
+$oldEmail = "jandjuk@arion.cz"
+$newEmail = "beta@arion.cz"
+
+# Get all scheduled tasks
+$tasks = Get-ScheduledTask
+
+foreach ($task in $tasks) {
+    # Export the task XML
+    $xml = (Export-ScheduledTask -TaskName $task.TaskName -TaskPath $task.TaskPath) -join "`n"
+
+    # Check if XML contains the old email
+    if ($xml -match [regex]::Escape($oldEmail)) {
+        Write-Output "Updating task: $($task.TaskPath)$($task.TaskName)"
+
+        # Replace the old email with the new one
+        $newXml = $xml -replace [regex]::Escape($oldEmail), $newEmail
+
+        # Re-register the task with the modified XML
+        $newXml | Register-ScheduledTask -TaskName $task.TaskName -TaskPath $task.TaskPath -Force
+    }
+}
+
 #############################################################################
 #REGION:: Check Networking
 # Check Server IP address and issue warning if the public IP is detected
