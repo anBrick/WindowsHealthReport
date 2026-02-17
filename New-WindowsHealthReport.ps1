@@ -156,6 +156,7 @@ $Header = @"
 <!DOCTYPE html><html><head>
 <title>$ServerName Health Report</title>
 <style>
+	:root{ --ok:#16a34a; --warn:#f59e0b; --err:#dc2626; --info:#2563eb; --bg:#f1f5f9; --card:#ffffff; --text:#0f172a; --muted:#64748b; --border:#e2e8f0;}
 	body { width:100%; min-width:1024px; padding-left: 12px; padding-right: 10px; font-family: Segoe UI, Verdana, sans-serif, ui-sans-serif, system-ui; font-size:14px; /*font-weight:300;*/ line-height:1.0; color:#222222; background-color:#f4f5f6;}
    strong{ font-weight:600;}
 	p.warning { font-family: Segoe UI, sans-serif, ui-sans-serif, system-ui; font-size:12.5px; font-weight: normal; font-stretch: expanded; color:#7B6000; margin-bottom: 2px; margin-top: 0em; margin-left:4px; margin-right:4px; line-height:1.4; background-color:white;}
@@ -163,15 +164,22 @@ $Header = @"
 	p.error { font-family: Segoe UI, sans-serif, ui-sans-serif, system-ui; font-size:12.5px; font-weight: normal; font-stretch: expanded; color:#7b0000; margin-bottom: 2px; margin-top: 0em; margin-left:4px; margin-right:4px; line-height:1.4; background-color:white;}
 	h1{ font-size:17px; font-weight:bold;}
    h2{ font-size:14px; font-weight:normal;}
-   h3{ font-size:17px; font-weight:normal; background-color:#66ccee; margin-top:3px; margin-bottom:1px; margin-left:4px; text-align:left;}
+   h3{ font-size:17px; font-weight:normal; margin-top:3px; margin-bottom:1px; margin-left:4px; text-align:left;}
+	.card{ background:var(--card); border-radius:12px; padding:18px; margin-bottom:20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05);}
    table {border: 0px solid #6E8BB6; background:#f3f3f3; margin-top:0px;}
-	table.scope {border-collapse: collapse; border: 0px solid #ffffff; padding:6px; background-color:#66ccee; margin-top:8px; text-align:left;}
-	table th { padding:0px; border-collapse: collapse; border: 0px solid #f3f3f3; text-align:left; vertical-align:middle; background-color:#317399; color:white; font-size:14px; font-weight: normal;}
-   table td.u { padding:1px; background-color:white; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:grey; margin-left:4px; margin-right:4px;}
-   table td.n { padding:1px; background-color:#8AFC95; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:black; margin-left:4px; margin-right:4px;}
-   table td.w { padding:1px; background-color:#FEEC6A; border-collapse: collapse; border: 1px solid #FF0000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:red; margin-left:4px; margin-right:4px;}
-   table td.e { padding:1px; background-color:#8F4040; border-collapse: collapse; border: 0px solid #FEEC6A; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:#f3f587; margin-left:4px; margin-right:4px;}
-	table tr.u { padding:1px; background-color:white; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:grey; margin-left:4px; margin-right:4px;}
+	table.scope {border-collapse: collapse; border: 0px solid #ffffff; padding:8px; background-color:#f9faff; margin-top:8px; text-align:left;}
+	table th { padding:4px; border-collapse: collapse; border: 0px solid #4c62b5; text-align:left; vertical-align:middle; background-color:#2563eb; color:white; font-size:14px; font-weight: normal;}
+   table td.dae { padding:15px; background-color:#dc2626; border-collapse: collapse; border: 0px solid #dc2626; text-align:left; vertical-align:middle; font-size:24px; font-family: system-ui, system-ui; color:white; margin-left:4px; margin-right:4px;}   
+   table td.daw { padding:15px; background-color:#f59e0b; border-collapse: collapse; border: 0px solid #f59e0b; text-align:left; vertical-align:middle; font-size:24px; font-family: system-ui, system-ui; color:white; margin-left:4px; margin-right:4px;}
+   table td.dan { padding:15px; background-color:#2563eb; border-collapse: collapse; border: 0px solid #2563eb; text-align:left; vertical-align:middle; font-size:24px; font-family: system-ui, system-ui; color:white; margin-left:4px; margin-right:4px;}
+   table td.daef13 { padding:8px; background-color:#dc2626; border-collapse: collapse; border: 0px solid #dc2626; text-align:left; vertical-align:top; font-size:13px; font-family: system-ui, system-ui; color:white; margin-left:4px; margin-right:4px;}   
+   table td.dawf13 { padding:8px; background-color:#f59e0b; border-collapse: collapse; border: 0px solid #f59e0b; text-align:left; vertical-align:top; font-size:13px; font-family: system-ui, system-ui; color:white; margin-left:4px; margin-right:4px;}
+   table td.danf13 { padding:8px; background-color:#2563eb; border-collapse: collapse; border: 0px solid #2563eb; text-align:left; vertical-align:top; font-size:13px; font-family: system-ui, system-ui; color:white; margin-left:4px; margin-right:4px;}
+   table td.u { padding:4px; background-color:white; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:grey; margin-left:4px; margin-right:4px;}
+   table td.n { padding:4px; background-color:#8AFC95; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:black; margin-left:4px; margin-right:4px;}
+   table td.w { padding:4px; background-color:#FEEC6A; border-collapse: collapse; border: 1px solid #FF0000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:red; margin-left:4px; margin-right:4px;}
+   table td.e { padding:4px; background-color:#8F4040; border-collapse: collapse; border: 0px solid #FEEC6A; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:#f3f587; margin-left:4px; margin-right:4px;}
+   table tr.u { padding:1px; background-color:white; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:grey; margin-left:4px; margin-right:4px;}
    table tr.n { padding:1px; background-color:#8AFC95; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:black; margin-left:4px; margin-right:4px;}
    table tr.w { padding:1px; background-color:#FCEC8A; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:red; margin-left:4px; margin-right:4px;}
    table tr.e { padding:1px; background-color:#530A0A; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:#f3f587; margin-left:4px; margin-right:4px;}
@@ -183,7 +191,7 @@ $Header = @"
 $Footer = @"
     <div></div><!--End ReportBody--><div>
     <br><center><i>Source script: $($MyInvocation.MyCommand.Path)<br>Report file was saved to $($ReportFilePath)</i></p></center>
-    <br><center><i>$(Get-Date -Format "dd/MM/yyyy HH:mm:ss")</i><p style="" font-size:8px;color:#7d9797"">Script Version: 2025.09 | By: Vladislav Jandjuk | Feedback: jandjuk@o30.cz | Git: github.com/anBrick/WindowsHealthReport</p></center>
+    <br><center><i>$(Get-Date -Format "dd/MM/yyyy HH:mm:ss")</i><p style="" font-size:8px;color:#7d9797"">Script Version: 2026.02 | By: Vladislav Jandjuk | Feedback: jandjuk@o30.cz | Git: github.com/anBrick/WindowsHealthReport</p></center>
     <br></div></body></html>
 "@
 #Other vasr and constants - change it if you know what you do
@@ -278,91 +286,47 @@ function Get-PendingRebootState
 		@{ Path = 'SYSTEM\CurrentControlSet\Control\DeviceMigration'; Name = 'PendingDeviceMigration' }
 		
 		# Custom script: Active vs. Current ComputerName mismatch
-		@{
-			Script = {
-				try
-				{
-					$acn = Get-RemoteRegistryValue -ServerName $ServerName `
-															 -Key 'SYSTEM\CurrentControlSet\Control\ComputerName\ActiveComputerName' `
-															 -Value 'ComputerName'
-					$ccn = Get-RemoteRegistryValue -ServerName $ServerName `
-															 -Key 'SYSTEM\CurrentControlSet\Control\ComputerName\ComputerName' `
-															 -Value 'ComputerName'
+		@{Script = {
+				try{
+					$acn = Get-RemoteRegistryValue -ServerName $ServerName -Key 'SYSTEM\CurrentControlSet\Control\ComputerName\ActiveComputerName' -Value 'ComputerName'
+					$ccn = Get-RemoteRegistryValue -ServerName $ServerName -Key 'SYSTEM\CurrentControlSet\Control\ComputerName\ComputerName' -Value 'ComputerName'
 					return ($acn -and $ccn -and ($acn -ne $ccn))
 				}
-				catch
-				{
-					Write-Verbose "ComputerName mismatch check failed: $_"
-					return $false
-				}
+				catch{Write-Verbose "ComputerName mismatch check failed: $_"; return $false}
 			}
 		}
 		
 		# Custom script: Windows Update Services\Pending has >0 values
-		@{
-			Script = {
-				try
-				{
-					$pnd = Get-RemoteRegistryValue -ServerName $ServerName `
-															 -Key 'SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Services\Pending'
+		@{Script = {
+			try{
+					$pnd = Get-RemoteRegistryValue -ServerName $ServerName -Key 'SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Services\Pending'
 					return ($pnd -and $pnd.ValueCount -gt 0)
 				}
-				catch
-				{
-					Write-Verbose "Pending services check failed: $_"
-					return $false
-				}
+				catch{Write-Verbose "Pending services check failed: $_";return $false}
 			}
 		}
 	)
 	
-	foreach ($test in $tests)
-	{
-		if ($test.Script)
-		{
-			if (& $test.Script)
-			{
-				Write-Verbose 'Reboot-pending indicator found by script test.'
-				return $true
-			}
+	foreach ($test in $tests){
+		if ($test.Script){
+			if (& $test.Script){Write-Verbose 'Reboot-pending indicator found by script test.'; return $true}
 		}
-		else
-		{
-			try
-			{
+		else{
+			try{
 				# Does the key exist?
 				$keyObj = Get-RemoteRegistryValue -ServerName $ServerName -Key $test.Path -ErrorAction Stop
-				if ($keyObj)
-				{
-					if ($test.Name)
-					{
-						$val = Get-RemoteRegistryValue `
-																 -ServerName $ServerName `
-																 -Key $test.Path `
-																 -Value $test.Name `
-																 -ErrorAction Stop
-						if ($null -ne $val)
-						{
-							Write-Verbose "Found '$($test.Name)' under '$($test.Path)'."
-							return $true
-						}
+				if ($keyObj){
+					if ($test.Name){
+						$val = Get-RemoteRegistryValue -ServerName $ServerName -Key $test.Path -Value $test.Name -ErrorAction Stop
+						if ($null -ne $val){Write-Verbose "Found '$($test.Name)' under '$($test.Path)'.";return $true}
 					}
-					else
-					{
-						Write-Verbose "Found key '$($test.Path)'."
-						return $true
-					}
+					else{Write-Verbose "Found key '$($test.Path)'.";return $true}
 				}
 			}
-			catch
-			{
-				Write-Verbose "Registry test failed for '$($test.Path)\$($test.Name)': $_"
-			}
+			catch{Write-Verbose "Registry test failed for '$($test.Path)\$($test.Name)': $_"}
 		}
 	}
-	
-	Write-Verbose 'No reboot-pending indicators detected.'
-	return $false
+	Write-Verbose 'No reboot-pending indicators detected.';return $false
 }
 
 function Detect-WindowsAVInstalled{
@@ -470,7 +434,11 @@ function ConvertTo-HTMLStyle {
 		$TableHeader += ("</TR>") 
 		}
 	}
-	End {$HTMLOutput =  $PreContent + "`r`n<TABLE><TR>" + $TableHeader + ($HTMLOutput.Replace('<TD class=>', '<TD class=u>')).Replace('::', '<br>') + "`n</TABLE>`r`n"; $HTMLOutput}
+	End {
+		$HTMLOutput =  $PreContent + "`r`n<TABLE><TR>" + $TableHeader + ($HTMLOutput.Replace('<TD class=>', '<TD class=u>')).Replace('::', '<br>') + "`n</TABLE>`r`n";
+		if ($PreContent -match '(?i)^\s*<div\b') {$HTMLOutput += '</div>'}  # auto add closing DIV
+		$HTMLOutput
+	}
 }
 function Write-Status {
 Param( 
@@ -1277,59 +1245,60 @@ while ($null -ne (Get-Job)) {
 #REGION:: BUILD REPORT
 Write-Status -Status Information -Message "Combine results and write the report on $($ServerName) at $(Get-Date)"
 	
-[void]$ReportHTMLArray.Add($($HostOSinfo | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($HostName) </font> | Operating System </H3></td></tr></table>"))
-if ($LoggedUsers.report) { [void]$ReportHTMLArray.Add($($LoggedUsers.report | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Logged On Users</H3></td></tr></table>"))}
-if ($SysEvents.report) { [void]$ReportHTMLArray.Add($($SysEvents.report | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Last 24h. Event Log Errors & Warnings</H3></td></tr></table>")) }
-if ($SysEventsVer.report) { [void]$ReportHTMLArray.Add($($SysEventsVer.report | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Last 24h. Event Log Errors List</H3></td></tr></table>")) }
-if ($HWConfig.report) { [void]$ReportHTMLArray.Add($($HWConfig.report | Select-Object -Property * -ExcludeProperty PSComputerName, RunspaceId, PSShowComputerName | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | SYSTEM HW </H3></td></tr></table>")) }
+[void]$ReportHTMLArray.Add($($HostOSinfo | ConvertTo-HTMLStyle -PreContent "<div class=card><table class=scope><tr><td><H3>HOST: <font color=green>$($HostName) </font> | Operating System </H3></td></tr></table>"))
+if ($LoggedUsers.report) { [void]$ReportHTMLArray.Add($($LoggedUsers.report | ConvertTo-HTMLStyle -PreContent "<div class=card><table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Logged On Users</H3></td></tr></table>"))}
+if ($SysEvents.report) { [void]$ReportHTMLArray.Add($($SysEvents.report | ConvertTo-HTMLStyle -PreContent "<div class=card><table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Last 24h. Event Log Errors & Warnings</H3></td></tr></table>")) }
+if ($SysEventsVer.report) { [void]$ReportHTMLArray.Add($($SysEventsVer.report | ConvertTo-HTMLStyle -PreContent "<div class=card><table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Last 24h. Event Log Errors List</H3></td></tr></table>")) }
+if ($HWConfig.report) { [void]$ReportHTMLArray.Add($($HWConfig.report | Select-Object -Property * -ExcludeProperty PSComputerName, RunspaceId, PSShowComputerName | ConvertTo-HTMLStyle -PreContent "<div class=card><table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | SYSTEM HW </H3></td></tr></table>")) }
 #REPLACE convertto-html !!!
 $AZState.Warnings.foreach({[void]$Problems.Add($_)})
-if ($AZState.report) { [void]$ReportHTMLArray.Add($($AZState.report | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Azure AD Join State</H3></td></tr></table>"))}	
+if ($AZState.report) { [void]$ReportHTMLArray.Add($($AZState.report | ConvertTo-HTMLStyle -PreContent "<div class=card><table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Azure AD Join State</H3></td></tr></table>"))}	
 $LoggedUsers.Warnings.foreach({[void]$Problems.Add($_)})
 $HWConfig.Warnings.foreach({[void]$Problems.Add($_)})
 $CPUConfig.Warnings.foreach({[void]$Problems.Add($_)})
-if ($CPUConfig.report) { [void]$ReportHTMLArray.Add($($CPUConfig.report | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | CPU(s) </H3></td></tr></table>")) }
+if ($CPUConfig.report) { [void]$ReportHTMLArray.Add($($CPUConfig.report | ConvertTo-HTMLStyle -PreContent "<div class=card><table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | CPU(s) </H3></td></tr></table>")) }
 $HDDConfig.Warnings.foreach({[void]$Problems.Add($_)})
-if ($HDDConfig.report) { [void]$ReportHTMLArray.Add($($HDDConfig.report | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Drives</H3></td></tr></table>")) }
+if ($HDDConfig.report) { [void]$ReportHTMLArray.Add($($HDDConfig.report | ConvertTo-HTMLStyle -PreContent "<div class=card><table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Drives</H3></td></tr></table>")) }
 $VOLstate.Warnings.foreach({[void]$Problems.Add($_)})
-if ($VOLstate.report) { [void]$ReportHTMLArray.Add($($VOLstate.report | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Volumes</H3></td></tr></table>")) }
+if ($VOLstate.report) { [void]$ReportHTMLArray.Add($($VOLstate.report | ConvertTo-HTMLStyle -PreContent "<div class=card><table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Volumes</H3></td></tr></table>")) }
 $NTPStat.Warnings.foreach({[void]$Problems.Add($_)})
-if ($NTPStat.report) { [void]$ReportHTMLArray.Add($($NTPStat.report | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | NTP Status</H3></td></tr></table>").Replace("::", "<br/>")) }
+if ($NTPStat.report) { [void]$ReportHTMLArray.Add($($NTPStat.report | ConvertTo-HTMLStyle -PreContent "<div class=card><table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | NTP Status</H3></td></tr></table>").Replace("::", "<br/>")) }
 $UnsigProcs.Warnings.foreach({[void]$Problems.Add($_)})
-if ($UnsigProcs.report) { [void]$ReportHTMLArray.Add($($UnsigProcs.report | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Processes with wrong signature</H3></td></tr></table>")) }
+if ($UnsigProcs.report) { [void]$ReportHTMLArray.Add($($UnsigProcs.report | ConvertTo-HTMLStyle -PreContent "<div class=card><table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Processes with wrong signature</H3></td></tr></table>")) }
 $StrangeServices.Warnings.foreach({[void]$Problems.Add($_)})
-if ($StrangeServices.report) { [void]$ReportHTMLArray.Add($($StrangeServices.report | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Strange Services</H3></td></tr></table>")) }
+if ($StrangeServices.report) { [void]$ReportHTMLArray.Add($($StrangeServices.report | ConvertTo-HTMLStyle -PreContent "<div class=card><table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Strange Services</H3></td></tr></table>")) }
 $LocalUsers.Warnings.foreach({[void]$Problems.Add($_)})
-if ($LocalUsers.report) { [void]$ReportHTMLArray.Add($($LocalUsers.report | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Unsettling User Accounts</H3></td></tr></table>").Replace("::", "<br/>")) }
+if ($LocalUsers.report) { [void]$ReportHTMLArray.Add($($LocalUsers.report | ConvertTo-HTMLStyle -PreContent "<div class=card><table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Unsettling User Accounts</H3></td></tr></table>").Replace("::", "<br/>")) }
 $Certificates.Warnings.foreach({[void]$Problems.Add($_)})
-if ($Certificates.report) { [void]$ReportHTMLArray.Add($($Certificates.report | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Certificates</H3></td></tr></table>").Replace("::", "<br/>")) }
+if ($Certificates.report) { [void]$ReportHTMLArray.Add($($Certificates.report | ConvertTo-HTMLStyle -PreContent "<div class=card><table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Certificates</H3></td></tr></table>").Replace("::", "<br/>")) }
 $Shares.Warnings.foreach({[void]$Problems.Add($_)})
-if ($Shares.report) { [void]$ReportHTMLArray.Add($($Shares.report | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | SMB Shares</H3></td></tr></table>").Replace("::", "<br/>")) }
-if ($AVinfo){$AVinfo.Warnings.foreach({[void]$Problems.Add($_)}); [void]$ReportHTMLArray.Add($($AVinfo.report | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Antivirus status</H3></td></tr></table>"))}
-if ($WAVConfig) {	$WAVConfig.Warnings.foreach({[void]$Problems.Add($_)}); if ($WAVConfig.report) {[void]$ReportHTMLArray.Add($($WAVConfig.report | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Windows Defender Status</H3></td></tr></table>"))}}
+if ($Shares.report) { [void]$ReportHTMLArray.Add($($Shares.report | ConvertTo-HTMLStyle -PreContent "<div class=card><table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | SMB Shares</H3></td></tr></table>").Replace("::", "<br/>")) }
+if ($AVinfo){$AVinfo.Warnings.foreach({[void]$Problems.Add($_)}); [void]$ReportHTMLArray.Add($($AVinfo.report | ConvertTo-HTMLStyle -PreContent "<div class=card><table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Antivirus status</H3></td></tr></table>"))}
+if ($WAVConfig) {	$WAVConfig.Warnings.foreach({[void]$Problems.Add($_)}); if ($WAVConfig.report) {[void]$ReportHTMLArray.Add($($WAVConfig.report | ConvertTo-HTMLStyle -PreContent "<div class=card><table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Windows Defender Status</H3></td></tr></table>"))}}
 $WFWStatus.Warnings.foreach({[void]$Problems.Add($_)})
-if ($WFWStatus.report) { [void]$ReportHTMLArray.Add($($WFWStatus.report | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Windows Firewall Status</H3></td></tr></table>").Replace("::", "<br/>")) }
+if ($WFWStatus.report) { [void]$ReportHTMLArray.Add($($WFWStatus.report | ConvertTo-HTMLStyle -PreContent "<div class=card><table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Windows Firewall Status</H3></td></tr></table>").Replace("::", "<br/>")) }
 $WuaAvailable.Warnings.foreach({[void]$Problems.Add($_)})
-if ($WuaAvailable.report) { [void]$ReportHTMLArray.Add($($WuaAvailable.report | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Windows Updates Available</H3></td></tr></table>")) }
+if ($WuaAvailable.report) { [void]$ReportHTMLArray.Add($($WuaAvailable.report | ConvertTo-HTMLStyle -PreContent "<div class=card><table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Windows Updates Available</H3></td></tr></table>")) }
 $SysEvents.Warnings.foreach({[void]$Problems.Add($_)})
 $SysEventsVer.Warnings.foreach({[void]$Problems.Add($_)})
-[void]$ReportHTMLArray.Add($($OSLicensing | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($HostName) </font> | Operating System Licensing State</H3></td></tr></table>"))
-[void]$ReportHTMLArray.Add($($InternetInfo | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($HostName) </font> | Internet Connection info </H3></td></tr></table>"))
+[void]$ReportHTMLArray.Add($($OSLicensing | ConvertTo-HTMLStyle -PreContent "<div class=card><table class=scope><tr><td><H3>HOST: <font color=green>$($HostName) </font> | Operating System Licensing State</H3></td></tr></table>"))
+[void]$ReportHTMLArray.Add($($InternetInfo | ConvertTo-HTMLStyle -PreContent "<div class=card><table class=scope><tr><td><H3>HOST: <font color=green>$($HostName) </font> | Internet Connection info </H3></td></tr></table>"))
 #############################################################################
 #REGION:: SAVE & SEND REPORT
 $ReportHTML = $Header + "<div><table><tr><td><H1>Host <font style='color: green;font-weight: bold;'>$($computerOS.PSComputerName)</font> health report.</H1></td><td style='text-align:right;'>Executed on <i>$ENV:COMPUTERNAME</i> as <i>$ENV:USERNAME</i> at $(get-date -Format s)</td></tr></table>"
 if ($Problems -and ($ShowProblems -or !$NoProblems)) {
-	$ReportHTML += "<H2>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Problems found:</H2></div><div class='twoColumns'>`n<table width=90%><tr>`n"
+	$ReportHTML += '<table width=98%><tr><td class=dae>Errors: <br>{0}</td><td class=daw>Warnings: <br>{1}</td><td class=dan>Notifications: <br>{2}</td></tr></table>' -f $($Problems.where({$_ -match "Error:"}).count),$($Problems.where({$_ -match "Warning:"}).count),$($Problems.where({$_ -notmatch "Error:" -and $_ -notmatch "Warning:"}).count)
+	$ReportHTML += "<H2>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Problems found:</H2></div>`n"
 	$Problems.foreach({
 		if ($_ -match "Error:"){$EReportHTML += "" + ($_ -replace "<div>","<div>") + "`n"}
 		elseif ($_ -match "Warning:") {$WReportHTML += "" + ($_ -replace "<div>","<div>") + "`n"}
-		else {$EReportHTML += "" + ($_ -replace "<div>","<div>") + "`n"}
+		else {$NReportHTML += "" + ($_ -replace "<div>","<div>") + "`n"}
 	})
-	$ReportHTML += "<td class=e>" + $EReportHTML + "</td><td class=w>" + $WReportHTML + "</td>" + "</tr></table></div>`n"
+	$ReportHTML += "<div class='twoColumns'><table width=98%><tr><td class=daef13>" + $EReportHTML + "</td><td class=dawf13>" + $WReportHTML + "</td><td class=danf13>" + $NReportHTML + "</td>" + "</tr></table></div>`n"
 }
 if (!$HealthOnly) {$ReportHTMLArray.foreach({$ReportHTML += $_})} #Save full report
 else { #save only Healthy/unhealthy status
-	$ReportHTML += $($HostOSinfo | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($HostName) </font> | Operating System </H3></td></tr></table>")
+	$ReportHTML += $($HostOSinfo | ConvertTo-HTMLStyle -PreContent "<div class=card><table class=scope><tr><td><H3>HOST: <font color=green>$($HostName) </font> | Operating System </H3></td></tr></table>")
 	$ReportHTML += "<table class=health><tr><td><H2>HOST: <font color=green>$($HostName) </font> | Event Log </H2></td>" + (Color-HState $SysEvents.HState) + "</tr>"
 	$ReportHTML += "<tr><td><H2>HOST: <font color=green>$($HostName) </font> | Hardware </H2></td>" + (Color-HState $HWConfig.HState) + "</tr>"
 	$ReportHTML += "<tr><td><H2>HOST: <font color=green>$($HostName) </font> | CPU </H2></td>" + (Color-HState $CPUConfig.HState) + "</tr>"
@@ -1348,7 +1317,7 @@ else { #save only Healthy/unhealthy status
 	$ReportHTML += "<tr><td><H2>HOST: <font color=green>$($HostName) </font> | Windows Updates </H2></td>" + (Color-HState $WuaAvailable.HState) + "</tr>"
 	$ReportHTML += "<tr><td><H2>HOST: <font color=green>$($HostName) </font> | Operating System Licensing </H2></td>" + (Color-HState $OSLicensing.HState) + "</tr>"
 	$ReportHTML += "<tr><td><H2>HOST: <font color=green>$($HostName) </font> | Azure </H2></td>" + (Color-HState $AZState.HState) + "</tr></table>"
-	$ReportHTML += $($SysEventsVer.report | ConvertTo-HTMLStyle -PreContent "<table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Last 24h. Event Log Errors List</H3></td></tr></table>")
+	$ReportHTML += $($SysEventsVer.report | ConvertTo-HTMLStyle -PreContent "<div class=card><table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Last 24h. Event Log Errors List</H3></td></tr></table>")
 }
 $ReportHTML += $Footer
 #Mark Warining Logins as red
