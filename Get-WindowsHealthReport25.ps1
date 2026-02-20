@@ -169,6 +169,11 @@ $Header = @"
    table {border: 0px solid #6E8BB6; background:#f3f3f3; margin-top:0px;}
 	table.scope {border-collapse: collapse; border: 0px solid #ffffff; padding:8px; background-color:#f9faff; margin-top:8px; text-align:left;}
 	table th { padding:4px; border-collapse: collapse; border: 0px solid #4c62b5; text-align:left; vertical-align:middle; background-color:#2563eb; color:white; font-size:14px; font-weight: normal;}
+   table tr { padding:1px; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; margin-left:4px; margin-right:4px;}
+   table tr.u { padding:1px; background-color:white; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:grey; margin-left:4px; margin-right:4px;}
+   table tr.n { padding:1px; background-color:#8AFC95; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:black; margin-left:4px; margin-right:4px;}
+   table tr.w { padding:1px; background-color:#FCEC8A; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:red; margin-left:4px; margin-right:4px;}
+   table tr.e { padding:1px; background-color:#530A0A; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:#f3f587; margin-left:4px; margin-right:4px;}
    table td.dae { padding:15px; background-color:#dc2626; border-collapse: collapse; border: 0px solid #dc2626; text-align:left; vertical-align:middle; font-size:24px; font-family: system-ui, system-ui; color:white; margin-left:4px; margin-right:4px;}   
    table td.daw { padding:15px; background-color:#f59e0b; border-collapse: collapse; border: 0px solid #f59e0b; text-align:left; vertical-align:middle; font-size:24px; font-family: system-ui, system-ui; color:white; margin-left:4px; margin-right:4px;}
    table td.dan { padding:15px; background-color:#2563eb; border-collapse: collapse; border: 0px solid #2563eb; text-align:left; vertical-align:middle; font-size:24px; font-family: system-ui, system-ui; color:white; margin-left:4px; margin-right:4px;}
@@ -177,13 +182,8 @@ $Header = @"
    table td.danf13 { padding:8px; background-color:#2563eb; border-collapse: collapse; border: 0px solid #2563eb; text-align:left; vertical-align:top; font-size:13px; font-family: system-ui, system-ui; color:white; margin-left:4px; margin-right:4px;}
    table td.u { padding:4px; background-color:white; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:grey; margin-left:4px; margin-right:4px;}
    table td.n { padding:4px; background-color:#8AFC95; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:black; margin-left:4px; margin-right:4px;}
-   table td.w { padding:4px; background-color:#FEEC6A; border-collapse: collapse; border: 1px solid #FF0000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:red; margin-left:4px; margin-right:4px;}
-   table td.e { padding:4px; background-color:#8F4040; border-collapse: collapse; border: 0px solid #FEEC6A; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:#f3f587; margin-left:4px; margin-right:4px;}
-   table tr.u { padding:1px; background-color:white; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:grey; margin-left:4px; margin-right:4px;}
-   table tr.n { padding:1px; background-color:#8AFC95; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:black; margin-left:4px; margin-right:4px;}
-   table tr.w { padding:1px; background-color:#FCEC8A; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:red; margin-left:4px; margin-right:4px;}
-   table tr.e { padding:1px; background-color:#530A0A; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:#f3f587; margin-left:4px; margin-right:4px;}
-   table tr { padding:1px; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; margin-left:4px; margin-right:4px;}
+   table td.w { padding:4px; background-color:#FEEC6A; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:red; margin-left:4px; margin-right:4px;}
+   table td.e { padding:4px; background-color:#8F4040; border-collapse: collapse; border: 0px solid #000000; text-align:left; vertical-align:middle; font-size:12px; font-family: system-ui, system-ui; color:#f3f587; margin-left:4px; margin-right:4px;}
    .twoColumns { padding: 10px; -webkit-column-count: 2; -webkit-column-rule: 1px solid #6E8BB6; column-count: 2; column-gap: 10px; column-rule: 1px solid #6E8BB6;}
 </style>
 </head><body>
@@ -1298,8 +1298,8 @@ if ($Problems -and ($ShowProblems -or !$NoProblems)) {
 }
 if (!$HealthOnly) {$ReportHTMLArray.foreach({$ReportHTML += $_})} #Save full report
 else { #save only Healthy/unhealthy status
-	$ReportHTML += $($HostOSinfo | ConvertTo-HTMLStyle -PreContent "<div class=card><table class=scope><tr><td><H3>HOST: <font color=green>$($HostName) </font> | Operating System </H3></td></tr></table>")
-	$ReportHTML += "<table class=health><tr><td><H2>HOST: <font color=green>$($HostName) </font> | Event Log </H2></td>" + (Color-HState $SysEvents.HState) + "</tr>"
+	$ReportHTML += $($HostOSinfo | ConvertTo-HTMLStyle -PreContent "<div class=card><table class=scope><tr><td><H3>HOST: <font color=green>$($HostName) </font> | Operating System </H3></td></tr></table></div>")
+	$ReportHTML += "<div class=card><table class=health><tr><td><H2>HOST: <font color=green>$($HostName) </font> | Event Log </H2></td>" + (Color-HState $SysEvents.HState) + "</tr>"
 	$ReportHTML += "<tr><td><H2>HOST: <font color=green>$($HostName) </font> | Hardware </H2></td>" + (Color-HState $HWConfig.HState) + "</tr>"
 	$ReportHTML += "<tr><td><H2>HOST: <font color=green>$($HostName) </font> | CPU </H2></td>" + (Color-HState $CPUConfig.HState) + "</tr>"
 	$ReportHTML += "<tr><td><H2>HOST: <font color=green>$($HostName) </font> | Drives </H2></td>" + (Color-HState $HDDConfig.HState) + "</tr>"
@@ -1316,8 +1316,8 @@ else { #save only Healthy/unhealthy status
 	$ReportHTML += "<tr><td><H2>HOST: <font color=green>$($HostName) </font> | Windows Firewall </H2></td>" + (Color-HState $WFWStatus.HState) + "</tr>"
 	$ReportHTML += "<tr><td><H2>HOST: <font color=green>$($HostName) </font> | Windows Updates </H2></td>" + (Color-HState $WuaAvailable.HState) + "</tr>"
 	$ReportHTML += "<tr><td><H2>HOST: <font color=green>$($HostName) </font> | Operating System Licensing </H2></td>" + (Color-HState $OSLicensing.HState) + "</tr>"
-	$ReportHTML += "<tr><td><H2>HOST: <font color=green>$($HostName) </font> | Azure </H2></td>" + (Color-HState $AZState.HState) + "</tr></table>"
-	$ReportHTML += $($SysEventsVer.report | ConvertTo-HTMLStyle -PreContent "<div class=card><table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Last 24h. Event Log Errors List</H3></td></tr></table>")
+	$ReportHTML += "<tr><td><H2>HOST: <font color=green>$($HostName) </font> | Azure </H2></td>" + (Color-HState $AZState.HState) + "</tr></table></div>"
+	$ReportHTML += $($SysEventsVer.report | ConvertTo-HTMLStyle -PreContent "<div class=card><table class=scope><tr><td><H3>HOST: <font color=green>$($computerOS.PSComputerName) </font> | Last 24h. Event Log Errors List</H3></td></tr></table></div>")
 }
 $ReportHTML += $Footer
 #Mark Warining Logins as red
