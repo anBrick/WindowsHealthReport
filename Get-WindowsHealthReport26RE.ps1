@@ -1563,6 +1563,7 @@ foreach ($block in $blocks) {
 
     # Extract fields
     $name     = if ($block -match 'Rule Name:\s+(.+)')        { $Matches[1].Trim() } else { '' }
+	 $description  = if ($block -match 'Description:\s+(.+)')  { $Matches[1].Trim() } else { '' }
     $group    = if ($block -match 'Grouping:\s+(.+)')         { $Matches[1].Trim() } else { '' }
     $profile  = if ($block -match 'Profiles:\s+(.+)')         { $Matches[1].Trim() } else { '' }
     $localPort= if ($block -match 'LocalPort:\s+(.+)')        { $Matches[1].Trim() } else { 'Any' }
@@ -1571,7 +1572,7 @@ foreach ($block in $blocks) {
 
     $isAnyApp = ($program -eq 'Any' -or $program -eq '')
 
-    if ($localPort -eq 'Any' -and $remPort -eq 'Any' -and $isAnyApp) {
+    if ((localPort -eq 'Any') -and ($remPort -eq 'Any') -and $isAnyApp) {
 			$warnings.Add([pscustomobject]@{
 				ID="WFW:$ServerName`\$name"
 				Hash="WFW:$ServerName`\$name"
@@ -1586,9 +1587,11 @@ foreach ($block in $blocks) {
             DIAG         = @{ DisplayName = $name }
             DisplayGroup = $group
             DisplayName  = $name
+				Description	 = $description
             Profile      = $profile
             Direction    = 'Inbound'
             LocalPort    = $localPort
+				Program 		 = $program
         })
     }
 }
