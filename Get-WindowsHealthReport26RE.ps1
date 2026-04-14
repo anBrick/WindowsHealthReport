@@ -1547,9 +1547,16 @@ $rFWC = { #Get WFW status : run remotely
 $rFWP = { #Analyze Windows Firewall Rules : run remotely
     param ($ServerName, $IgnoreList)
 
-    $warnings = New-Object System.Collections.Generic.HashSet[string]; $report   = New-Object System.Collections.Generic.List[object]; $HState   = 'Healthy'
+$warnings = [System.Collections.Generic.List[object]]::new()
+$report   = [System.Collections.Generic.List[object]]::new()
+$HState   = 'Healthy'
+
+# Ensure $ServerName is defined (fallback to local computer name if not passed in scope)
+if (-not $ServerName) { $ServerName = $env:COMPUTERNAME }
+
 # netsh is available on ALL Windows versions, fast, no CIM class issues
 $raw = netsh advfirewall firewall show rule name=all dir=in verbose 2>$null
+
 # Parse rule blocks
 $blocks = ($raw -join "`n") -split '(?=Rule Name:)'
 
@@ -1558,21 +1565,22 @@ foreach ($block in $blocks) {
 
     # Only Enabled + Inbound + Allow
     if ($block -notmatch 'Enabled:\s+Yes')          { continue }
-    if ($block -notmatch 'Direction:\s+In')          { continue }
-    if ($block -notmatch 'Action:\s+Allow')          { continue }
+    if ($block -notmatch 'Direction:\s+In')         { continue }
+    if ($block -notmatch 'Action:\s+Allow')         { continue }
 
     # Extract fields
-    $name     = if ($block -match 'Rule Name:\s+(.+)')        { $Matches[1].Trim() } else { '' }
-	 $description  = if ($block -match 'Description:\s+(.+)')  { $Matches[1].Trim() } else { '' }
-    $group    = if ($block -match 'Grouping:\s+(.+)')         { $Matches[1].Trim() } else { '' }
-    $profile  = if ($block -match 'Profiles:\s+(.+)')         { $Matches[1].Trim() } else { '' }
-    $localPort= if ($block -match 'LocalPort:\s+(.+)')        { $Matches[1].Trim() } else { 'Any' }
-    $remPort  = if ($block -match 'RemotePort:\s+(.+)')       { $Matches[1].Trim() } else { 'Any' }
-    $program  = if ($block -match 'Program:\s+(.+)')          { $Matches[1].Trim() } else { 'Any' }
+    $name        = if ($block -match 'Rule Name:\s+(.+)')        { $Matches[1].Trim() } else { 'Unknown' }
+    $description = if ($block -match 'Description:\s+(.+)')      { $Matches[1].Trim() } else { '' }
+    $group       = if ($block -match 'Grouping:\s+(.+)')         { $Matches[1].Trim() } else { '' }
+    $profile     = if ($block -match 'Profiles:\s+(.+)')         { $Matches[1].Trim() } else { '' }
+    $localPort   = if ($block -match 'LocalPort:\s+(.+)')       { $Matches[1].Trim() } else { 'Any' }
+    $remPort     = if ($block -match 'RemotePort:\s+(.+)')      { $Matches[1].Trim() } else { 'Any' }
+    $program     = if ($block -match 'Program:\s+(.+)')         { $Matches[1].Trim() } else { 'Any' }
 
     $isAnyApp = ($program -eq 'Any' -or $program -eq '')
 
-    if ((localPort -eq 'Any') -and ($remPort -eq 'Any') -and $isAnyApp) {
+    # FIXED: Added missing `$` to $localPort and cleaned up string escaping
+    if ($localPort -eq 'Any' -and $remPort -eq 'Any' -and $isAnyApp) {
 			$warnings.Add([pscustomobject]@{
 				ID="WFW:$ServerName`\$name"
 				Hash="WFW:$ServerName`\$name"
@@ -1587,21 +1595,22 @@ foreach ($block in $blocks) {
             DIAG         = @{ DisplayName = $name }
             DisplayGroup = $group
             DisplayName  = $name
-				Description	 = $description
+            Description  = $description
             Profile      = $profile
             Direction    = 'Inbound'
             LocalPort    = $localPort
-				Program 		 = $program
+            Program      = $program
         })
     }
 }
 
-[pscustomobject]@{
-    Warnings = $warnings
-    Report   = $report
-    HState   = $HState
+	[pscustomobject]@{
+	    Warnings = $warnings
+	    Report   = $report
+	    HState   = $HState
+	}
 }
-}
+
 $rEVT = { #Get Event Log Errors count - run locally
 	param ($ServerName,$IgnoreList)
 	$w = @();[Collections.ArrayList]$r=@();$DIAG=@{}; $HState = 'Healthy'
